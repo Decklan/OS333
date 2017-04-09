@@ -93,3 +93,19 @@ int sys_halt(void){
   return 0;
 }
 
+// My implementation of sys_date()
+int
+sys_date(void)
+{
+  struct rtcdate *d;
+
+  if (argptr(0, (void*)&d, sizeof(*d)) < 0)
+    return -1;
+  // MY CODE HERE
+  cmostime(d);       
+  return 0; 
+}
+
+
+
+

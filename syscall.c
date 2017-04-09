@@ -99,6 +99,7 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_halt(void);
+extern int sys_date(void); //My code
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -123,9 +124,11 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_halt]    sys_halt,
+[SYS_date]    sys_date, //My code
 };
 
 // put data structure for printing out system call invocation information here
+#ifdef PRINT_SYSCALLS
 static char *syscallnames[] = {
 [SYS_fork]   "fork",
 [SYS_exit]   "exit",
@@ -149,7 +152,9 @@ static char *syscallnames[] = {
 [SYS_mkdir]  "mkdir",
 [SYS_close]  "close",
 [SYS_halt]   "halt",
+[SYS_date]    "date",
 };
+#endif 
 
 void
 syscall(void)
@@ -160,7 +165,9 @@ syscall(void)
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     proc->tf->eax = syscalls[num]();
 // some code goes here
+    #ifdef PRINT_SYSCALLS
     cprintf("%s -> %d\n", syscallnames[num], num);
+    #endif
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             proc->pid, proc->name, num);

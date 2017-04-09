@@ -70,6 +70,7 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  p->start_ticks = ticks; // My code Allocate start ticks to global ticks variable
   return p;
 }
 
@@ -493,6 +494,7 @@ static char *states[] = {
   [ZOMBIE]    "zombie"
 };
 
+
 //PAGEBREAK: 36
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
@@ -505,6 +507,7 @@ procdump(void)
   char *state;
   uint pc[10];
   
+  cprintf("%s\t %s\t %s\t %s   %s\n", "PID", "State", "Name", "Elapsed", "PCs");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -512,7 +515,9 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    uint seconds = (ticks - p->start_ticks)/100;
+    uint partial_seconds = (ticks - p->start_ticks)%100;
+    cprintf("%d\t %s\t %s\t %d.%d\t", p->pid, state, p->name, seconds, partial_seconds);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
