@@ -96,6 +96,8 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
+  p->uid = DEFAULTUID; // p2
+  p->gid = DEFAULTGID; // p2
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -146,6 +148,9 @@ fork(void)
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
+  // I'm pretty sure that this is where we put the uid/gid copy
+  np -> uid = proc -> uid; // p2
+  np -> gid = proc -> gid; // p2
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;

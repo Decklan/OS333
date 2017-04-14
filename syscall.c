@@ -99,7 +99,12 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_halt(void);
-extern int sys_date(void); //My code
+extern int sys_date(void);     // p1
+extern int sys_getuid(void);   // p2
+extern int sys_getgid(void);   // p2
+extern int sys_getppid(void);  // p2
+extern int sys_setuid(void);   // p2
+extern int sys_setgid(void);   // p2
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -124,35 +129,45 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_halt]    sys_halt,
-[SYS_date]    sys_date, //My code
+[SYS_date]    sys_date,      // p1
+[SYS_getuid]  sys_getuid,    // p2
+[SYS_getgid]  sys_getgid,    // p2
+[SYS_getppid] sys_getppid,   // p2
+[SYS_setuid]  sys_setuid,    // p2
+[SYS_setgid]  sys_setgid,    // p2
 };
 
 // put data structure for printing out system call invocation information here
 #ifdef PRINT_SYSCALLS
 static char *syscallnames[] = {
-[SYS_fork]   "fork",
-[SYS_exit]   "exit",
-[SYS_wait]   "wait",
-[SYS_pipe]   "pipe",
-[SYS_read]   "read",
-[SYS_kill]   "kill",
-[SYS_exec]   "exec",
-[SYS_fstat]  "fstat",
-[SYS_chdir]  "chdir",
-[SYS_dup]    "dup",
-[SYS_getpid] "getpid",
-[SYS_sbrk]   "sbrk",
-[SYS_sleep]  "sleep",
-[SYS_uptime] "uptime",
-[SYS_open]   "open",
-[SYS_write]  "write",
-[SYS_mknod]  "mknod",
-[SYS_unlink] "unlink",
-[SYS_link]   "link",
-[SYS_mkdir]  "mkdir",
-[SYS_close]  "close",
-[SYS_halt]   "halt",
-[SYS_date]    "date",
+[SYS_fork]    "fork",
+[SYS_exit]    "exit",
+[SYS_wait]    "wait",
+[SYS_pipe]    "pipe",
+[SYS_read]    "read",
+[SYS_kill]    "kill",
+[SYS_exec]    "exec",
+[SYS_fstat]   "fstat",
+[SYS_chdir]   "chdir",
+[SYS_dup]     "dup",
+[SYS_getpid]  "getpid",
+[SYS_sbrk]    "sbrk",
+[SYS_sleep]   "sleep",
+[SYS_uptime]  "uptime",
+[SYS_open]    "open",
+[SYS_write]   "write",
+[SYS_mknod]   "mknod",
+[SYS_unlink]  "unlink",
+[SYS_link]    "link",
+[SYS_mkdir]   "mkdir",
+[SYS_close]   "close",
+[SYS_halt]    "halt",
+[SYS_date]    "date",        // p1
+[SYS_getuid]  "getuid",      // p2
+[SYS_getgid]  "getgid",      // p2
+[SYS_getppid] "getppid",     // p2
+[SYS_setuid]  "setuid",      // p2
+[SYS_setgid]  "setgid",      // p2
 };
 #endif 
 
