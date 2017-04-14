@@ -153,6 +153,7 @@ UPROGS=\
 	_zombie\
 	_halt\
 	_date\
+        _idtest\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

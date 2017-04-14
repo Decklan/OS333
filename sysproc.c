@@ -106,6 +106,64 @@ sys_date(void)
   return 0; 
 }
 
+// My implementation of sys_getuid
+uint
+sys_getuid(void)
+{
+  return proc->uid;
+}
+
+// My implementation of sys_getgid
+uint
+sys_getgid(void)
+{
+  return proc->gid;
+}
+
+// My implementation of sys_getppid
+uint
+sys_getppid(void)
+{
+  return proc->parent ? proc->parent->pid : proc->pid;
+}
+
+
+// Implementation of sys_setuid
+int 
+sys_setuid(void)
+{
+  int id; // uid argument
+  // Grab argument off the stack and store in id
+  argint(0, &id);
+  if(id < 0 || id > 32767)
+    return -1;
+  proc->uid = id; 
+  return 0;
+}
+
+// Implementation of sys_setgid
+int
+sys_setgid(void)
+{
+  int id; // gid argument 
+  // Grab argument off the stack and store in id
+  argint(0, &id);
+  if(id < 0 || id > 32767)
+    return -1;
+  proc->gid = id;
+  return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
