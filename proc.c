@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "uproc.h"
 
 struct {
   struct spinlock lock;
@@ -538,5 +539,50 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+// Implementation of sys_getprocs
+int
+sys_getprocs(void)
+{
+  int m; // Max arg
+  struct uproc* table;
+  struct proc *p;
+  argint(0, &m);
+  if (m < 0)
+    return -1;
+  argptr(1, (void*)&table, m);
+
+  int i = 0;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state == RUNNING || p->state == RUNNABLE || p->state == SLEEPING)
+    {
+      table[i].pid = p->pid;
+      table[i].uid = p->uid;
+      table[i].gid = p->gid;
+      if (p->parent)
+        table[i].ppid = p->parent->pid;
+      else
+        table[i].ppid = p->pid;
+      table[i].elapsed_ticks = p->cpu_ticks_total;
+      table[i].CPU_total_ticks = p->cpu_ticks_total;
+      table[i].size = p->sz;
+      strncpy(table[i].state, states[p->state], sizeof(p->state)+1);
+      strncpy(table[i].name, p->name, sizeof(p->name)+1);
+      i++;
+    }
+  }  
+
+  return i;
+}
+
+
+
+
+
+
+
+
+
 
 

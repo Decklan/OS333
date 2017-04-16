@@ -155,19 +155,6 @@ sys_setgid(void)
   return 0;
 }
 
-// Implementation of sys_getprocs
-int
-sys_getprocs(void)
-{
-  int m; // Max arg
-  struct uproc* table;
-  argint(0, &m);
-  if (m < 0)
-    return -1;
-  argptr(1, (void*)&table, m);
-
-  return 0;
-}
 
 
 
