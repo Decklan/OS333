@@ -71,6 +71,8 @@ found:
   p->context->eip = (uint)forkret;
 
   p->start_ticks = ticks; // My code Allocate start ticks to global ticks variable
+  p->cpu_ticks_total = 0; // My code p2
+  p->cpu_ticks_in = 0;    // My code p2
   return p;
 }
 
@@ -310,6 +312,7 @@ scheduler(void)
       proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      p->cpu_ticks_in = ticks; // My code p2
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
 
@@ -351,6 +354,7 @@ sched(void)
   if(readeflags()&FL_IF)
     panic("sched interruptible");
   intena = cpu->intena;
+  proc->cpu_ticks_total = ticks - proc->cpu_ticks_in; // My code p2
   swtch(&proc->context, cpu->scheduler);
   cpu->intena = intena;
 }
@@ -534,3 +538,5 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+

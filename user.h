@@ -1,5 +1,6 @@
 struct stat;
 struct rtcdate;
+struct uproc;
 
 // system calls
 int fork(void);
@@ -24,12 +25,13 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int halt(void);
-int date(struct rtcdate*); // p1
-uint getuid(void);         // p2
-uint getgid(void);         // p2
-uint getppid(void);        // p2
-int setuid(uint);          // p2
-int setgid(uint);          // p2
+int date(struct rtcdate*);                   // p1
+uint getuid(void);                           // p2
+uint getgid(void);                           // p2
+uint getppid(void);                          // p2
+int setuid(uint);                            // p2
+int setgid(uint);                            // p2
+int getprocs(uint max, struct uproc* table); // p2
 
 // ulib.c
 int stat(char*, struct stat*);

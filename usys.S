@@ -30,9 +30,10 @@ SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
 SYSCALL(halt)
-SYSCALL(date)    #p1
-SYSCALL(getuid)  #p2
-SYSCALL(getgid)  #p2
-SYSCALL(getppid) #p2
-SYSCALL(setuid)  #p2
-SYSCALL(setgid)  #p2
+SYSCALL(date)      #p1
+SYSCALL(getuid)    #p2
+SYSCALL(getgid)    #p2
+SYSCALL(getppid)   #p2
+SYSCALL(setuid)    #p2
+SYSCALL(setgid)    #p2
+SYSCALL(getprocs)  #p2

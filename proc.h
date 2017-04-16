@@ -68,6 +68,8 @@ struct proc {
   char name[16];               // Process name (debugging)
   uint start_ticks;            // My code
   uint uid, gid;               // My code p2
+  uint cpu_ticks_total;        // My code p2
+  uint cpu_ticks_in;           // My code p2
 };
 
 // Process memory is laid out contiguously, low addresses first:
