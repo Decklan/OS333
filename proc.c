@@ -564,7 +564,7 @@ sys_getprocs(void)
         table[i].ppid = p->parent->pid;
       else
         table[i].ppid = p->pid;
-      table[i].elapsed_ticks = p->cpu_ticks_total;
+      table[i].elapsed_ticks = (ticks - p->start_ticks);
       table[i].CPU_total_ticks = p->cpu_ticks_total;
       table[i].size = p->sz;
       strncpy(table[i].state, states[p->state], sizeof(p->state)+1);
