@@ -355,7 +355,7 @@ sched(void)
   if(readeflags()&FL_IF)
     panic("sched interruptible");
   intena = cpu->intena;
-  proc->cpu_ticks_total = ticks - proc->cpu_ticks_in; // My code p2
+  proc->cpu_ticks_total += ticks - proc->cpu_ticks_in; // My code p2
   swtch(&proc->context, cpu->scheduler);
   cpu->intena = intena;
 }
@@ -540,18 +540,10 @@ procdump(void)
   }
 }
 
-// Implementation of sys_getprocs
 int
-sys_getprocs(void)
+getproc_helper(int m, struct uproc* table)
 {
-  int m; // Max arg
-  struct uproc* table;
-  struct proc *p;
-  argint(0, &m);
-  if (m < 0)
-    return -1;
-  argptr(1, (void*)&table, m);
-
+  struct proc* p;
   int i = 0;
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
@@ -571,11 +563,9 @@ sys_getprocs(void)
       strncpy(table[i].name, p->name, sizeof(p->name)+1);
       i++;
     }
-  }  
-
-  return i;
+  }
+  return i;  
 }
-
 
 
 

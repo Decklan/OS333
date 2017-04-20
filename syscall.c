@@ -184,7 +184,7 @@ syscall(void)
     proc->tf->eax = syscalls[num]();
 // some code goes here
     #ifdef PRINT_SYSCALLS
-    cprintf("%s -> %d\n", syscallnames[num], num);
+    cprintf("%s -> %d\n", syscallnames[num], proc->tf->eax);
     #endif
   } else {
     cprintf("%d %s: unknown sys call %d\n",

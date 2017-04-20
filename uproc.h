@@ -12,3 +12,6 @@ struct uproc
   uint size;
   char name[STRMAX];
 };
+
+// Helper function for getprocs system call
+int getproc_helper(int m, struct uproc* table);
