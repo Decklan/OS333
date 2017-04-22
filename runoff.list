@@ -81,4 +81,5 @@ bootmain.c
 print_mode.c
 date.c
 idtest.c
-ps.c	
+ps.c
+time.c	
