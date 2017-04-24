@@ -82,4 +82,5 @@ print_mode.c
 date.c
 idtest.c
 ps.c
-time.c	
+time.c
+uproc.h	

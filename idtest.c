@@ -39,7 +39,7 @@ forkTest(uint nval)
   int pid;
 
   printf(1, "Setting UID to %d and GID to %d before fork(). Value"
-                  " should be inherited\n", nval, nval);
+       	                " should be inherited\n", nval, nval);
 
   if (setuid(nval) < 0)
     printf(2, "Error.Invalid UID: %d\n", nval);
@@ -73,19 +73,8 @@ invalidTest(uint nval)
     printf(1, "SUCCESS! The setgid system call indicated failure\n");
   else
     printf(2, "FAILURE! The setgid system call indicates success\n");
-
-  printf(1, "Setting UID to %d. This test should FAIL\n", -1);
-  if (setuid(-1) < 0)
-    printf(1, "SUCCESS! The setuid system call indicated failure\n");
-  else
-    printf(2, "FAILURE! The setuid system call indicates success\n");
-
-  printf(1, "Setting GID to %d. This test should FAIL\n", -1);
-  if (setgid(-1) < 0)
-    printf(1, "SUCCESS! The setgid system call indicated failure\n");
-  else
-    printf(2, "FAILURE! The setgid system call indicates success\n");
 }
+
 
 static int
 testuidgid(void)
@@ -93,11 +82,11 @@ testuidgid(void)
   uint nval, ppid;
 
   // get/set uid test
-  nval = 100;
+  nval = 150;
   uidTest(nval);
 
   // get/set gid test
-  nval = 200;
+  nval = 150;
   gidTest(nval);
 
   // getppid test
@@ -112,6 +101,9 @@ testuidgid(void)
   nval = 32800;
   invalidTest(nval);
 
+  nval = -1;
+  invalidTest(nval);
+
   printf(1, "Done!\n");
   return 0;
 }
@@ -122,36 +114,4 @@ main()
   testuidgid();
   exit();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -18,7 +18,10 @@ int main(int argc, char *argv[])
     after = uptime();
     int secs = (after-before)/100;
     int p_secs = (after-before)%100;
-    printf(1, "%s ran in %d.%d seconds\n", argv[1], secs, p_secs); 
+    if (p_secs < 10)
+      printf(1, "%s ran in %d.0%d seconds\n", argv[1], secs, p_secs);
+    else 
+      printf(1, "%s ran in %d.%d seconds\n", argv[1], secs, p_secs); 
   } 
   exit();
 }

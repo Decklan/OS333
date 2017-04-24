@@ -517,7 +517,7 @@ procdump(void)
   char *state;
   uint pc[10];
   
-  cprintf("%s\t %s\t %s\t %s   %s\n", "PID", "State", "Name", "Elapsed", "PCs");
+  cprintf("%s\t %s\t %s\t %s\t %s\t %s\t %s  %s\t %s\n", "PID", "Name", "UID", "GID", "PPID", "State", "Elapsed", "CPU", "PCs");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -527,10 +527,21 @@ procdump(void)
       state = "???";
     uint seconds = (ticks - p->start_ticks)/100;
     uint partial_seconds = (ticks - p->start_ticks)%100;
-    cprintf("%d\t %s\t %s\t %d.", p->pid, state, p->name, seconds);
+    cprintf("%d\t %s\t %d\t %d\t", p->pid, p->name, p->uid, p->gid);
+    if (p->parent)
+      cprintf("%d\t", p->parent->pid);
+    else
+      cprintf("%d\t", p->pid);
+    cprintf(" %s\t %d.", state, seconds);
     if (partial_seconds < 10)
 	cprintf("0");
     cprintf("%d\t", partial_seconds);
+    uint cpu_seconds = p->cpu_ticks_total/100;
+    uint cpu_partial_seconds = p->cpu_ticks_total%100;
+    if (cpu_partial_seconds < 10)
+      cprintf("  %d.0%d\t", cpu_seconds, cpu_partial_seconds);
+    else
+      cprintf("  %d.%d\t", cpu_seconds, cpu_partial_seconds);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
