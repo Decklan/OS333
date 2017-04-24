@@ -556,7 +556,7 @@ getproc_helper(int m, struct uproc* table)
 {
   struct proc* p;
   int i = 0;
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  for (p = ptable.proc; p < &ptable.proc[NPROC] && i < m; p++)
   {
     if (p->state == RUNNING || p->state == RUNNABLE || p->state == SLEEPING)
     {
