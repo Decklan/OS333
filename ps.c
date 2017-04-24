@@ -1,6 +1,6 @@
 #include "uproc.h"
 #include "user.h"
-#define MAX 1
+#define MAX 32
 
 int main()
 {
