@@ -8,9 +8,21 @@
 #include "spinlock.h"
 #include "uproc.h"
 
+//#define CS333_P3P4
+
+struct StateLists {
+  struct proc* free;
+  struct proc* embryo;
+  struct proc* ready;
+  struct proc* running;
+  struct proc* sleep;
+  struct proc* zombie;
+};
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct StateLists pLists;
 } ptable;
 
 static struct proc *initproc;
@@ -20,6 +32,11 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+static void assert_state(struct proc* p, enum procstate state);
+//static int remove_from_list(struct proc** sList, struct proc* p);
+static int add_to_list(struct proc** sList, enum procstate state, struct proc* p);
+//static int add_to_ready(struct proc* p, enum procstate state);
+//static int remove_from_embryo(struct proc* p);
 
 void
 pinit(void)
@@ -84,7 +101,17 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+  ptable.pLists.free = 0;
+  ptable.pLists.embryo = 0;
+  ptable.pLists.ready = 0;
+  ptable.pLists.running = 0;
+  ptable.pLists.sleep = 0;
+  ptable.pLists.zombie = 0;
+
+  // Loop through ptable adding procs to free
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    add_to_list(&ptable.pLists.free, UNUSED, p);  
+
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -551,6 +578,22 @@ procdump(void)
   }
 }
 
+// Counts the number of procs in the free list when ctrl-f is pressed
+void
+free_length()
+{
+  struct proc* f = ptable.pLists.free;
+  int count = 0;
+  if (!f)
+    cprintf("Free List Size: %d\n", count);
+  while (f)
+  {
+    ++count;
+    f = f->next;
+  }
+  cprintf("Free List Size: %d\n", count);
+}
+
 int
 getproc_helper(int m, struct uproc* table)
 {
@@ -577,6 +620,75 @@ getproc_helper(int m, struct uproc* table)
   }
   return i;  
 }
+
+// Implementation of assert_state function
+static void
+assert_state(struct proc* p, enum procstate state)
+{
+  if (p->state == state)
+    return;
+  panic("ERROR: States do not match.");
+}
+
+/*
+// Implementation of remove_from_list
+static int
+remove_from_list(struct proc** sList, struct proc* p)
+{
+  if (!sList)
+    return -1;
+  p = *sList;
+  *sList = p->next;
+  p->next = 0;
+  return 0;
+}
+*/
+
+// Implementation of add_to_list
+static int
+add_to_list(struct proc** sList, enum procstate state, struct proc* p)
+{
+  if (!p)
+    return -1;
+  assert_state(p, state);
+  p->next = *sList;
+  *sList = p;
+  return 0;
+}
+
+/*
+// Implementation of add_to_ready
+static int
+add_to_ready(struct proc* p, enum procstate state)
+{
+  if (!p)
+    return -1;
+  assert_state(p, state);
+  struct proc* t = ptable.pLists.ready;
+  while (t->next)
+    t = t->next;
+  t->next = p;
+  p->next = 0;
+  return 0;
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

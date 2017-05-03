@@ -70,7 +70,11 @@ struct proc {
   uint uid, gid;               // My code p2
   uint cpu_ticks_total;        // My code p2
   uint cpu_ticks_in;           // My code p2
+  struct proc* next;           // My code p3
 };
+
+// Prints free list size when user presses ctrl-f
+void free_length();
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
