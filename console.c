@@ -191,7 +191,7 @@ consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
   int f = 0;
-//  int r = 0;
+  int r = 0;
 //  int s = 0;
 //  int z = 0;
 
@@ -217,6 +217,9 @@ consoleintr(int (*getc)(void))
     case C('F'):
       f = 1;
       break;
+    case C('R'):
+      r = 1;
+      break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
@@ -234,8 +237,11 @@ consoleintr(int (*getc)(void))
   if(doprocdump) {
     procdump();  // now call procdump() wo. cons.lock held
   }
-  if(f == 1) {
+  if(f) {
     free_length();
+  }
+  if(r) {
+    display_ready();
   }
 }
 

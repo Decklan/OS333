@@ -73,9 +73,6 @@ struct proc {
   struct proc* next;           // My code p3
 };
 
-// Prints free list size when user presses ctrl-f
-void free_length();
-
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss

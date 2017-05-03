@@ -35,8 +35,7 @@ static void wakeup1(void *chan);
 static void assert_state(struct proc* p, enum procstate state);
 static int remove_from_list(struct proc** sList, struct proc* p);
 static int add_to_list(struct proc** sList, enum procstate state, struct proc* p);
-//static int add_to_ready(struct proc* p, enum procstate state);
-//static int remove_from_embryo(struct proc* p);
+static int add_to_ready(struct proc* p, enum procstate state);
 
 void
 pinit(void)
@@ -244,16 +243,9 @@ fork(void)
   // endif
   np->state = RUNNABLE;
   // ifdef
-  add_to_list(&ptable.pLists.ready, RUNNABLE, np);
+  add_to_ready(np, RUNNABLE);
   // endif
   release(&ptable.lock);
-  
-  struct proc* t = ptable.pLists.ready;
-  while (t)
-  {
-    cprintf("Name: %s State: %d\n", t->name, t->state);
-    t = t->next;
-  }
   return pid;
 }
 
@@ -357,7 +349,23 @@ wait(void)
 int
 wait(void)
 {
+  struct proc* p;
+  int havekids, pid;
 
+  acquire(&ptable.lock);
+  for(;;) {
+    // Scan through table looking for zombie children
+    havekids = 0;
+
+    // No point waiting if we don't have any children
+    if (!havekids || proc->killed) {
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit. (See wakeup1 call in proc_exit.)
+    sleep(proc, &ptable.lock);  //DOC: wait-sleep
+  }
 }
 #endif
 
@@ -416,7 +424,37 @@ scheduler(void)
 void
 scheduler(void)
 {
+  struct proc* p;
+  int idle;  // for checking if processor is idle
 
+  for(;;) {
+    // Enable interrupts on this processor.
+    sti();
+    
+    idle = 1;   // assume idle unless we schedule a process
+    acquire(&ptable.lock);
+    if(remove_from_list(&ptable.pLists.ready, p) == 0) {
+      assert_state(p, RUNNABLE);
+      idle = 0;  // not idle this timeslice
+      proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+      add_to_list(&ptable.pList.running, RUNNING, p);
+      p->cpu_ticks_in = ticks;  // My code p3
+      swtch(&cpu->scheduler, proc->context);
+      switchkvm();
+    
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      proc = 0; 
+    }
+
+    release(&ptable.lock);
+    if (idle) {
+      sti();
+      hlt();
+    }
+  }
 }
 #endif
 
@@ -445,7 +483,20 @@ sched(void)
 void
 sched(void)
 {
+  int intena;
 
+  if(!holding(&ptable.lock))
+    panic("sched ptable.lock");
+  if(cpu->ncli != 1)
+    panic("sched locks");
+  if(proc->state == RUNNING)
+    panic("sched running");
+  if(readeflags()&FL_IF)
+    panic("sched interruptible");
+  intena = cpu->intena;
+  proc->cpu_ticks_total += ticks - proc->cpu_ticks_in; // My code p2
+  swtch(&proc->context, cpu->scheduler);
+  cpu->intena = intena;
 }
 #endif
 
@@ -454,7 +505,14 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
+  #ifdef CS333_P3P4
+  remove_from_list(&ptable.pLists.running, proc);
+  assert_state(proc, RUNNING);
+  #endif
   proc->state = RUNNABLE;
+  #ifdef CS333_P3P4
+  add_to_ready(proc, RUNNABLE);
+  #endif
   sched();
   release(&ptable.lock);
 }
@@ -503,7 +561,14 @@ sleep(void *chan, struct spinlock *lk)
 
   // Go to sleep.
   proc->chan = chan;
+  #ifdef CS333_P3P4
+  remove_from_list(&ptable.pLists.running, proc);
+  assert_state(proc, RUNNING);
+  #endif
   proc->state = SLEEPING;
+  #ifdef
+  add_to_list(&ptable.pLists.sleep, proc);
+  #endif
   sched();
 
   // Tidy up.
@@ -633,22 +698,6 @@ procdump(void)
   }
 }
 
-// Counts the number of procs in the free list when ctrl-f is pressed
-void
-free_length()
-{
-  struct proc* f = ptable.pLists.free;
-  int count = 0;
-  if (!f)
-    cprintf("Free List Size: %d\n", count);
-  while (f)
-  {
-    ++count;
-    f = f->next;
-  }
-  cprintf("Free List Size: %d\n", count);
-}
-
 int
 getproc_helper(int m, struct uproc* table)
 {
@@ -674,6 +723,39 @@ getproc_helper(int m, struct uproc* table)
     }
   }
   return i;  
+}
+
+// Counts the number of procs in the free list when ctrl-f is pressed
+void
+free_length()
+{
+  struct proc* f = ptable.pLists.free;
+  int count = 0;
+  if (!f)
+    cprintf("Free List Size: %d\n", count);
+  while (f)
+  {
+    ++count;
+    f = f->next;
+  }
+  cprintf("Free List Size: %d\n", count);
+}
+
+// Displays the PIDs of all processes in the ready list
+void
+display_ready()
+{
+  if (!ptable.pLists.ready)
+    cprintf("No processes currently in ready.\n");
+  struct proc* t = ptable.pLists.ready;
+  while (t) {
+    if (!t->next)
+      cprintf("%d", t->pid);
+    else
+      cprintf("%d -> ", t->pid);
+    t = t->next;
+  }
+  cprintf("\n");
 }
 
 // Implementation of assert_state function
@@ -709,7 +791,6 @@ add_to_list(struct proc** sList, enum procstate state, struct proc* p)
   return 0;
 }
 
-/*
 // Implementation of add_to_ready
 static int
 add_to_ready(struct proc* p, enum procstate state)
@@ -724,7 +805,7 @@ add_to_ready(struct proc* p, enum procstate state)
   p->next = 0;
   return 0;
 }
-*/
+
 
 
 
