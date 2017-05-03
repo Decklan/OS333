@@ -33,7 +33,7 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 static void assert_state(struct proc* p, enum procstate state);
-//static int remove_from_list(struct proc** sList, struct proc* p);
+static int remove_from_list(struct proc** sList, struct proc* p);
 static int add_to_list(struct proc** sList, enum procstate state, struct proc* p);
 //static int add_to_ready(struct proc* p, enum procstate state);
 //static int remove_from_embryo(struct proc* p);
@@ -56,20 +56,41 @@ allocproc(void)
   char *sp;
 
   acquire(&ptable.lock);
+  //#ifndef CS333_P3P4
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
       goto found;
+  //#else
+  p = ptable.pLists.free;
+  remove_from_list(&ptable.pLists.free, p);
+  assert_state(p, UNUSED);
+  goto found;
+  //#endif
   release(&ptable.lock);
   return 0;
 
 found:
+  // Remove the lower 3 lines once flag is working when enabled
+  p = ptable.pLists.free;
+  remove_from_list(&ptable.pLists.free, p);
+  assert_state(p, UNUSED);
   p->state = EMBRYO;
+  //#ifdef CS333_P3P4
+  add_to_list(&ptable.pLists.embryo, EMBRYO, p);
+  //#endif
   p->pid = nextpid++;
   release(&ptable.lock);
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
+    //#ifdef CS333_P3P4
+    remove_from_list(&ptable.pLists.embryo, p);
+    assert_state(p, EMBRYO);
+    //#endif
     p->state = UNUSED;
+    //#ifdef CS333_P3P4
+    add_to_list(&ptable.pLists.free, UNUSED, p);
+    //#endif
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
@@ -132,7 +153,19 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
+  // Will use ifdefs when flag works
+  // ifdef
+  acquire(&ptable.lock);
+  remove_from_list(&ptable.pLists.embryo, p);
+  assert_state(p, EMBRYO);
+  // endif
   p->state = RUNNABLE;
+  // ifdef
+  ptable.pLists.ready = p;
+  p->next = 0;
+  release(&ptable.lock);
+  // endif
+  cprintf("Name: %s State: %d\n", p->name, p->state);
 }
 
 // Grow current process's memory by n bytes.
@@ -172,7 +205,16 @@ fork(void)
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
+    // ifdef
+    acquire(&ptable.lock);
+    remove_from_list(&ptable.pLists.embryo, np);
+    assert_state(np, EMBRYO);
+    // endif
     np->state = UNUSED;
+    // ifdef
+    add_to_list(&ptable.pLists.free, UNUSED, np);
+    release(&ptable.lock);
+    // endif
     return -1;
   }
   np->sz = proc->sz;
@@ -196,9 +238,22 @@ fork(void)
 
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
+  // ifdef
+  remove_from_list(&ptable.pLists.embryo, np);
+  assert_state(np, EMBRYO);
+  // endif
   np->state = RUNNABLE;
+  // ifdef
+  add_to_list(&ptable.pLists.ready, RUNNABLE, np);
+  // endif
   release(&ptable.lock);
   
+  struct proc* t = ptable.pLists.ready;
+  while (t)
+  {
+    cprintf("Name: %s State: %d\n", t->name, t->state);
+    t = t->next;
+  }
   return pid;
 }
 
@@ -630,7 +685,6 @@ assert_state(struct proc* p, enum procstate state)
   panic("ERROR: States do not match.");
 }
 
-/*
 // Implementation of remove_from_list
 static int
 remove_from_list(struct proc** sList, struct proc* p)
@@ -642,7 +696,6 @@ remove_from_list(struct proc** sList, struct proc* p)
   p->next = 0;
   return 0;
 }
-*/
 
 // Implementation of add_to_list
 static int
