@@ -159,7 +159,6 @@ userinit(void)
   p->next = 0;
   release(&ptable.lock);
   #endif
-  cprintf("Name: %s State: %d\n", p->name, p->state);
 }
 
 // Grow current process's memory by n bytes.
@@ -238,6 +237,7 @@ fork(void)
   #endif
   np->state = RUNNABLE;
   #ifdef CS333_P3P4
+  cprintf("Parent: %s, Adding child to runnable: %s\n", proc->name, np->name);
   add_to_ready(np, RUNNABLE);
   #endif
   release(&ptable.lock);
@@ -289,6 +289,7 @@ exit(void)
   sched();
   panic("zombie exit");
 }
+
 #else
 void
 exit(void)
@@ -412,6 +413,7 @@ wait(void)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
 }
+
 #else
 int
 wait(void)
@@ -547,17 +549,17 @@ scheduler(void)
 void
 scheduler(void)
 {
+  struct proc* p = ptable.pLists.ready;
   int idle;  // for checking if processor is idle
 
   for(;;) {
     // Enable interrupts on this processor.
     sti();
-    struct proc* p = ptable.pLists.ready;
     
     idle = 1;   // assume idle unless we schedule a process
     acquire(&ptable.lock);
     if(remove_from_list(&ptable.pLists.ready, p)) {
-//      assert_state(p, RUNNABLE);
+      assert_state(p, RUNNABLE);
       idle = 0;  // not idle this timeslice
       proc = p;
       switchuvm(p);
@@ -766,6 +768,7 @@ kill(int pid)
   release(&ptable.lock);
   return -1;
 }
+
 #else
 int
 kill(int pid)
