@@ -117,6 +117,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
+  acquire(&ptable.lock);
   ptable.pLists.free = 0;
   ptable.pLists.embryo = 0;
   ptable.pLists.ready = 0;
@@ -127,6 +128,7 @@ userinit(void)
   // Loop through ptable adding procs to free
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     add_to_list(&ptable.pLists.free, UNUSED, p);  
+  release(&ptable.lock);
 
   p = allocproc();
   initproc = p;
@@ -549,16 +551,18 @@ scheduler(void)
 void
 scheduler(void)
 {
-  struct proc* p = ptable.pLists.ready;
+  struct proc* p;
   int idle;  // for checking if processor is idle
 
   for(;;) {
     // Enable interrupts on this processor.
     sti();
-    
     idle = 1;   // assume idle unless we schedule a process
     acquire(&ptable.lock);
-    if(remove_from_list(&ptable.pLists.ready, p)) {
+    p = ptable.pLists.ready;
+
+    if(p) {
+      remove_from_list(&ptable.pLists.ready, p);
       assert_state(p, RUNNABLE);
       idle = 0;  // not idle this timeslice
       proc = p;
