@@ -8,7 +8,7 @@
 #include "spinlock.h"
 #include "uproc.h"
 
-#define CS333_P3P4
+//#define CS333_P3P4
 
 struct StateLists {
   struct proc* free;
@@ -61,9 +61,11 @@ allocproc(void)
       goto found;
   #else
   p = ptable.pLists.free;
-  remove_from_list(&ptable.pLists.free, p);
-  assert_state(p, UNUSED);
-  goto found;
+  if (p) {
+    remove_from_list(&ptable.pLists.free, p);
+    assert_state(p, UNUSED);
+    goto found;
+  } 
   #endif
   release(&ptable.lock);
   return 0;
@@ -78,6 +80,7 @@ found:
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
+    acquire(&ptable.lock);
     #ifdef CS333_P3P4
     remove_from_list(&ptable.pLists.embryo, p);
     assert_state(p, EMBRYO);
@@ -86,6 +89,7 @@ found:
     #ifdef CS333_P3P4
     add_to_list(&ptable.pLists.free, UNUSED, p);
     #endif
+    release(&ptable.lock);
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
@@ -239,7 +243,6 @@ fork(void)
   #endif
   np->state = RUNNABLE;
   #ifdef CS333_P3P4
-  cprintf("Parent: %s, Adding child to runnable: %s\n", proc->name, np->name);
   add_to_ready(np, RUNNABLE);
   #endif
   release(&ptable.lock);
@@ -915,35 +918,100 @@ getproc_helper(int m, struct uproc* table)
 
 // Counts the number of procs in the free list when ctrl-f is pressed
 void
-free_length()
+free_length(void)
 {
+  acquire(&ptable.lock);
   struct proc* f = ptable.pLists.free;
   int count = 0;
-  if (!f)
+  if (!f) {
     cprintf("Free List Size: %d\n", count);
+    release(&ptable.lock);
+  }
   while (f)
   {
     ++count;
     f = f->next;
   }
   cprintf("Free List Size: %d\n", count);
+  release(&ptable.lock);
 }
 
 // Displays the PIDs of all processes in the ready list
 void
-display_ready()
+display_ready(void)
 {
-  if (!ptable.pLists.ready)
+  acquire(&ptable.lock);
+  struct proc* r = ptable.pLists.ready;
+  if (!r) {
     cprintf("No processes currently in ready.\n");
-  struct proc* t = ptable.pLists.ready;
-  while (t) {
-    if (!t->next)
-      cprintf("%d", t->pid);
-    else
-      cprintf("%d -> ", t->pid);
-    t = t->next;
+    release(&ptable.lock);
+    return;
   }
-  cprintf("\n");
+  cprintf("Ready List Processes:\n");
+  while (r) {
+    if (!r->next)
+      cprintf("%d\n", r->pid);
+    else
+      cprintf("%d -> ", r->pid);
+    r = r->next;
+  }
+  release(&ptable.lock);
+  return;
+}
+
+// Displays the PIDs of all processes in the sleep list
+void
+display_sleep(void)
+{
+  acquire(&ptable.lock);
+  struct proc* s = ptable.pLists.sleep;
+  if (!s) {
+    cprintf("No processes currently in sleep.\n");
+    release(&ptable.lock);
+    return;
+  }
+  cprintf("Sleep List Processes:\n");
+  while (s) {
+    if (!s->next)
+      cprintf("%d\n", s->pid);
+    else
+      cprintf("%d -> ", s->pid);
+    s = s->next;
+  }
+  release(&ptable.lock);
+  return;
+}
+
+// Displays the PID/PPID of processes in the zombie list
+void display_zombie(void)
+{
+  acquire(&ptable.lock);
+  struct proc* z = ptable.pLists.zombie;
+  if (!z) {
+    cprintf("No processes currently in zombie.\n");
+    release(&ptable.lock);
+    return;
+  }
+  cprintf("Zombie List Processes(/PPIDs)\n");
+  while (z) {
+    if (!z->next) {
+      cprintf("(%d", z->pid);
+      if (z->parent)
+        cprintf(", %d)\n", z->parent->pid);
+      else
+        cprintf(", %d)\n", z->pid);
+    }
+    else {
+      cprintf("(%d", z->pid);
+      if (z->parent)
+        cprintf(", %d) -> ", z->parent->pid);
+      else
+        cprintf(", %d) -> ", z->pid);
+    }
+    z = z->next;
+  }
+  release(&ptable.lock);
+  return;
 }
 
 // Implementation of assert_state function
@@ -1013,28 +1081,5 @@ add_to_ready(struct proc* p, enum procstate state)
   p->next = 0;
   return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
