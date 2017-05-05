@@ -118,6 +118,10 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            free_length(void);     // My code p3
+void            display_ready(void);   // My code p3
+void            display_sleep(void);   // My code p3
+void            display_zombie(void);  // My code p3
 
 // swtch.S
 void            swtch(struct context**, struct context*);
