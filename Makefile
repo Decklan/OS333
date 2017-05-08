@@ -157,6 +157,9 @@ UPROGS=\
         _idtest\
         _ps\
         _time\
+        _zombietest\
+        _loopforever\
+        _pstest\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

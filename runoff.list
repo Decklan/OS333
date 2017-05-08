@@ -83,4 +83,7 @@ date.c
 idtest.c
 ps.c
 time.c
-uproc.h	
+uproc.h
+zombietest.c
+loopforever.c	
+pstest.c
