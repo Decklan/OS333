@@ -8,8 +8,7 @@
 #include "spinlock.h"
 #include "uproc.h"
 
-//#define CS333_P3P4
-
+// New struct holding state lists
 struct StateLists {
   struct proc* free;
   struct proc* embryo;
@@ -22,7 +21,7 @@ struct StateLists {
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
-  struct StateLists pLists;
+  struct StateLists pLists;             // P3: Added pLists 
 } ptable;
 
 static struct proc *initproc;
@@ -31,11 +30,14 @@ int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
+// Helper functions declared static
 static void wakeup1(void *chan);
 static void assert_state(struct proc* p, enum procstate state);
 static int remove_from_list(struct proc** sList, struct proc* p);
 static int add_to_list(struct proc** sList, enum procstate state, struct proc* p);
 static int add_to_ready(struct proc* p, enum procstate state);
+static void exit_helper(struct proc** sList);
+static void wait_helper(struct proc** sList, int* hk);
 
 void
 pinit(void)
@@ -60,6 +62,10 @@ allocproc(void)
     if(p->state == UNUSED)
       goto found;
   #else
+  // Check to make sure the ptable has free procs available
+  // remove from list wont return a negative number in this
+  // case because we check p and the list against null before
+  // passing it in to the function. 
   p = ptable.pLists.free;
   if (p) {
     remove_from_list(&ptable.pLists.free, p);
@@ -73,6 +79,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   #ifdef CS333_P3P4
+  // Process is checked against null before it reaches this function
+  // so this function won't fail at this point.
   add_to_list(&ptable.pLists.embryo, EMBRYO, p);
   #endif
   p->pid = nextpid++;
@@ -161,6 +169,9 @@ userinit(void)
   #endif
   p->state = RUNNABLE;
   #ifdef CS333_P3P4
+  // Since it is the first process to be made I directly add to
+  // the front of the ready list. Ocurrences after this use the
+  // add to ready function. 
   ptable.pLists.ready = p;
   p->next = 0;
   release(&ptable.lock);
@@ -206,12 +217,16 @@ fork(void)
     np->kstack = 0;
     #ifdef CS333_P3P4
     acquire(&ptable.lock);
-    remove_from_list(&ptable.pLists.embryo, np);
+    int code = remove_from_list(&ptable.pLists.embryo, np);
+    if (code < 0)
+      panic("ERROR: Couldn't remove from embryo.");
     assert_state(np, EMBRYO);
     #endif
     np->state = UNUSED;
     #ifdef CS333_P3P4
-    add_to_list(&ptable.pLists.free, UNUSED, np);
+    int code2 = add_to_list(&ptable.pLists.free, UNUSED, np);
+    if (code2 < 0)
+      panic("ERROR: Couldn't add process back to free.");
     release(&ptable.lock);
     #endif
     return -1;
@@ -323,40 +338,15 @@ exit(void)
   // Parent might be sleeping in wait().
   wakeup1(proc->parent);
 
-  // Pass abandoned children to init.
-  // Search embryo list
-  p = ptable.pLists.embryo;
-  while (p) {
-    if (p->parent == proc)
-      p->parent = initproc;
-    p = p->next;
-  }  
+  // Run exit helper to check process parents against the
+  // currently running process. 
+  exit_helper(&ptable.pLists.embryo);
+  exit_helper(&ptable.pLists.ready);
+  exit_helper(&ptable.pLists.running);
+  exit_helper(&ptable.pLists.sleep);
 
-  // Search ready list
-  p = ptable.pLists.ready;
-  while (p) {
-    if (p->parent == proc)
-      p->parent = initproc;
-    p = p->next;
-  }
-
-  // Search running to see if proc is initproc
-  p = ptable.pLists.running;
-  while (p) {
-    if (p->parent == proc)
-      p->parent = initproc;
-    p = p->next;
-  }
-
-  // Search sleep list
-  p = ptable.pLists.sleep;
-  while (p) {
-    if (p->parent == proc)
-      p->parent = initproc;
-    p = p->next;
-  }
-
-  // Search zombie list 
+  // Search zombie list separately due to the potential need
+  // to wake up initproc as well.
   p = ptable.pLists.zombie;
   while (p) {
     if (p->parent == proc) {
@@ -431,39 +421,16 @@ wait(void)
     // Scan through table looking for zombie children
     havekids = 0;
 
-    // Search embryo list
-    p = ptable.pLists.embryo;
-    while (p) {
-      if (p->parent == proc)
-        havekids = 1;
-      p = p->next;
-    }
+    // Run wait helper function to search each list and check
+    // if process parent is the currently running process and
+    // set havekids to 1 if that is the case.
+    wait_helper(&ptable.pLists.embryo, &havekids);
+    wait_helper(&ptable.pLists.ready, &havekids);
+    wait_helper(&ptable.pLists.running, &havekids);
+    wait_helper(&ptable.pLists.sleep, &havekids);
 
-    // Search ready list
-    p = ptable.pLists.ready;
-    while (p) {
-      if (p->parent == proc)
-        havekids = 1;
-      p = p->next;
-    }
-
-    // Search ready list
-    p = ptable.pLists.running;
-    while (p) {
-      if (p->parent == proc)
-        havekids = 1;
-      p = p->next;
-    }
-    
-    // Search ready list
-    p = ptable.pLists.sleep;
-    while (p) {
-      if (p->parent == proc)
-        havekids = 1;
-      p = p->next;
-    }
-
-    // Search ready list
+    // Search zombie list separately due to the potential need
+    // to deallocate the process and move it to the free list.
     p = ptable.pLists.zombie;
     while (p) {
       if (p->parent == proc) {
@@ -1082,4 +1049,27 @@ add_to_ready(struct proc* p, enum procstate state)
   return 0;
 }
 
+// Implementation of exit helper function
+static void
+exit_helper(struct proc** sList)
+{
+  struct proc* p = *sList;
+  while (p) {
+    if (p->parent == proc)
+      p->parent = initproc;
+    p = p->next;
+  }
+}
+
+// Implementation of wait helper function
+static void
+wait_helper(struct proc** sList, int* hk)
+{
+  struct proc* p = *sList;
+  while (p) {
+    if (p->parent == proc)
+      *hk = 1;
+    p = p->next;
+  }
+}
 
