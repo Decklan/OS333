@@ -37,3 +37,4 @@ SYSCALL(getppid)   #p2
 SYSCALL(setuid)    #p2
 SYSCALL(setgid)    #p2
 SYSCALL(getprocs)  #p2
+SYSCALL(setpriority)

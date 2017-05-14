@@ -73,6 +73,7 @@ CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 &
 # CFLAGS += -DPRINT_SYSCALLS     # CS333 to print syscall traces
 CFLAGS += -DUSE_BUILTINS       # CS333 to turn on shell built-ins
 CFLAGS += -DCS333_P3P4         # New flag for P3P4
+CFLAGS += -DP4                 # Temporary flag for p4 REMOVE WHEN ALL IS WORKING
 ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 # FreeBSD ld wants ``elf_i386_fbsd''
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null)
@@ -160,6 +161,7 @@ UPROGS=\
         _zombietest\
         _loopforever\
         _pstest\
+        _priotest\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

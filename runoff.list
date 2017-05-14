@@ -87,3 +87,4 @@ uproc.h
 zombietest.c
 loopforever.c	
 pstest.c
+priotest.c

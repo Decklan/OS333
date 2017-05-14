@@ -168,7 +168,19 @@ sys_getprocs(void)
   return getproc_helper(m, table);
 }
 
+#ifdef P4
+// Implementation of sys_setpriority
+int
+sys_setpriority(void)
+{
+  int pid;
+  int prio;
 
+  argint(0, &pid);
+  argint(1, &prio);
+  return set_priority(pid, prio);
+}
+#endif
 
 
 

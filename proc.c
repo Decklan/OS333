@@ -8,11 +8,20 @@
 #include "spinlock.h"
 #include "uproc.h"
 
+#ifdef P4
+#define TICKS_TO_PROMOTE 500
+#define MAX 5
+#endif
+
 // New struct holding state lists
 struct StateLists {
   struct proc* free;
   struct proc* embryo;
+  #ifndef P4
   struct proc* ready;
+  #else
+  struct proc* ready[MAX+1];
+  #endif
   struct proc* running;
   struct proc* sleep;
   struct proc* zombie;
@@ -21,7 +30,10 @@ struct StateLists {
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
-  struct StateLists pLists;             // P3: Added pLists 
+  struct StateLists pLists;             // P3: Added pLists
+  #ifdef P4
+  uint promote_at_time;                 // P4: Default promotion time 
+  #endif
 } ptable;
 
 static struct proc *initproc;
@@ -38,6 +50,10 @@ static int add_to_list(struct proc** sList, enum procstate state, struct proc* p
 static int add_to_ready(struct proc* p, enum procstate state);
 static void exit_helper(struct proc** sList);
 static void wait_helper(struct proc** sList, int* hk);
+#ifdef P4
+static int search_and_set(struct proc** sList, int pid, int prio);
+static int search_and_set_ready(int pid, int prio);
+#endif
 
 void
 pinit(void)
@@ -119,6 +135,9 @@ found:
   p->start_ticks = ticks; // My code Allocate start ticks to global ticks variable
   p->cpu_ticks_total = 0; // My code p2
   p->cpu_ticks_in = 0;    // My code p2
+  #ifdef P4
+  p->priority = 0;        // My code p4
+  #endif
   return p;
 }
 
@@ -132,16 +151,25 @@ userinit(void)
   acquire(&ptable.lock);
   ptable.pLists.free = 0;
   ptable.pLists.embryo = 0;
-  ptable.pLists.ready = 0;
   ptable.pLists.running = 0;
   ptable.pLists.sleep = 0;
   ptable.pLists.zombie = 0;
+  #ifndef P4
+  ptable.pLists.ready = 0;
+  #else
+  for (int i = 0; i < MAX+1; i++)
+    ptable.pLists.ready[i] = 0;
+  #endif
 
   // Loop through ptable adding procs to free
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     add_to_list(&ptable.pLists.free, UNUSED, p);  
-  release(&ptable.lock);
 
+  #ifdef P4
+  ptable.promote_at_time = 500;                         // P4: Init promote time to 5 seconds..
+  #endif
+  release(&ptable.lock);
+  
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -171,8 +199,12 @@ userinit(void)
   #ifdef CS333_P3P4
   // Since it is the first process to be made I directly add to
   // the front of the ready list. Ocurrences after this use the
-  // add to ready function. 
+  // add to ready function.
+  #ifndef P4                                                                 // NEW IFNDEF P4
   ptable.pLists.ready = p;
+  #else
+  ptable.pLists.ready[0] = p;
+  #endif
   p->next = 0;
   release(&ptable.lock);
   #endif
@@ -341,7 +373,12 @@ exit(void)
   // Run exit helper to check process parents against the
   // currently running process. 
   exit_helper(&ptable.pLists.embryo);
+  #ifndef P4
   exit_helper(&ptable.pLists.ready);
+  #else
+  for (int i = 0; i < MAX+1; i++)
+    exit_helper(&ptable.pLists.ready[i]);
+  #endif
   exit_helper(&ptable.pLists.running);
   exit_helper(&ptable.pLists.sleep);
 
@@ -425,7 +462,12 @@ wait(void)
     // if process parent is the currently running process and
     // set havekids to 1 if that is the case.
     wait_helper(&ptable.pLists.embryo, &havekids);
+    #ifndef P4
     wait_helper(&ptable.pLists.ready, &havekids);
+    #else
+    for (int i = 0; i < MAX+1; i++)
+      wait_helper(&ptable.pLists.ready[i], &havekids);
+    #endif
     wait_helper(&ptable.pLists.running, &havekids);
     wait_helper(&ptable.pLists.sleep, &havekids);
 
@@ -447,6 +489,7 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+        p->priority = 0;
         add_to_list(&ptable.pLists.free, UNUSED, p);
         release(&ptable.lock);
         return pid;
@@ -523,29 +566,44 @@ scheduler(void)
 {
   struct proc* p;
   int idle;  // for checking if processor is idle
+  #ifdef P4
+  uint promo; // Stores ticks value as scheduler runs 
+  #endif
 
   for(;;) {
+
     // Enable interrupts on this processor.
     sti();
     idle = 1;   // assume idle unless we schedule a process
-    acquire(&ptable.lock);
-    p = ptable.pLists.ready;
-
-    if(p) {
-      remove_from_list(&ptable.pLists.ready, p);
-      assert_state(p, RUNNABLE);
-      idle = 0;  // not idle this timeslice
-      proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      add_to_list(&ptable.pLists.running, RUNNING, p);
-      p->cpu_ticks_in = ticks;  // My code p3
-      swtch(&cpu->scheduler, proc->context);
-      switchkvm();
     
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      proc = 0; 
+    acquire(&ptable.lock);
+    #ifdef P4
+    promo = ticks; // Set promo to ticks and check if promo needs to happen
+    if (promo == ptable.promote_at_time) {
+      //Perform promotion here
+      //Increment promote_at_time
+      ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
+    }
+    #endif    
+    
+    for (int i = 0; i < MAX+1; i++) {
+      p = ptable.pLists.ready[i];                                              // P4 changes
+      if(p) {
+        remove_from_list(&ptable.pLists.ready[i], p);
+        assert_state(p, RUNNABLE);
+        idle = 0;  // not idle this timeslice
+        proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        add_to_list(&ptable.pLists.running, RUNNING, p);
+        p->cpu_ticks_in = ticks;  // My code p3
+        swtch(&cpu->scheduler, proc->context);
+        switchkvm();
+    
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        proc = 0; 
+      }
     }
 
     release(&ptable.lock);
@@ -760,15 +818,17 @@ kill(int pid)
     }
     p = p->next;
   }
-  // Search through embryo
-  p = ptable.pLists.ready;
-  while (p) {
-    if (p->pid == pid) {
-      p->killed = 1;
-      release(&ptable.lock);
-      return 0;
+  // Search through ready
+  for (int i = 0; i < MAX+1; i++) {                 // P4 changes
+    p = ptable.pLists.ready[i];
+    while (p) {
+      if (p->pid == pid) {
+        p->killed = 1;
+        release(&ptable.lock);
+        return 0;
+      }
+      p = p->next;
     }
-    p = p->next;
   }
   // Search through embryo
   p = ptable.pLists.running;
@@ -822,7 +882,7 @@ procdump(void)
   char *state;
   uint pc[10];
   
-  cprintf("%s\t %s\t %s\t %s\t %s\t %s\t %s  %s\t %s\n", "PID", "Name", "UID", "GID", "PPID", "State", "Elapsed", "CPU", "PCs");
+  cprintf("%s\t %s\t %s\t %s\t %s\t %s\t %s\t %s  %s\t %s\n", "PID", "Name", "UID", "GID", "PPID", "Prio", "State", "Elapsed", "CPU", "PCs");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -834,10 +894,10 @@ procdump(void)
     uint partial_seconds = (ticks - p->start_ticks)%100;
     cprintf("%d\t %s\t %d\t %d\t", p->pid, p->name, p->uid, p->gid);
     if (p->parent)
-      cprintf("%d\t", p->parent->pid);
+      cprintf(" %d\t", p->parent->pid);
     else
-      cprintf("%d\t", p->pid);
-    cprintf(" %s\t %d.", state, seconds);
+      cprintf(" %d\t", p->pid);
+    cprintf(" %d\t %s\t %d.", p->priority, state, seconds);
     if (partial_seconds < 10)
 	cprintf("0");
     cprintf("%d\t", partial_seconds);
@@ -872,6 +932,7 @@ getproc_helper(int m, struct uproc* table)
         table[i].ppid = p->parent->pid;
       else
         table[i].ppid = p->pid;
+      table[i].priority = p->priority;
       table[i].elapsed_ticks = (ticks - p->start_ticks);
       table[i].CPU_total_ticks = p->cpu_ticks_total;
       table[i].size = p->sz;
@@ -908,6 +969,7 @@ void
 display_ready(void)
 {
   acquire(&ptable.lock);
+  #ifndef P4
   struct proc* r = ptable.pLists.ready;
   if (!r) {
     cprintf("No processes currently in ready.\n");
@@ -922,6 +984,24 @@ display_ready(void)
       cprintf("%d -> ", r->pid);
     r = r->next;
   }
+  #else
+  cprintf("Ready List Processes:\n");
+  for (int i = 0; i < MAX+1; i++) {
+    cprintf("List %d: ", i);
+    struct proc* r = ptable.pLists.ready[i];
+    if (!r) {
+      cprintf("\n");
+      continue;
+    }
+    while (r) {
+      if (!r->next)
+        cprintf("%d\n", r->pid);
+      else
+        cprintf("%d -> ", r->pid);
+      r = r->next;
+    }
+  }
+  #endif
   release(&ptable.lock);
   return;
 }
@@ -1036,6 +1116,7 @@ add_to_ready(struct proc* p, enum procstate state)
   if (!p)
     return -1;
   assert_state(p, state);
+  #ifndef P4
   if (!ptable.pLists.ready) {
     p->next = ptable.pLists.ready;
     ptable.pLists.ready = p;
@@ -1047,6 +1128,19 @@ add_to_ready(struct proc* p, enum procstate state)
   t->next = p;
   p->next = 0;
   return 0;
+  #else                                                   // NEW ADD_TO_READY
+  if (!ptable.pLists.ready[p->priority]) {
+    p->next = ptable.pLists.ready[p->priority];
+    ptable.pLists.ready[p->priority] = p;
+    return 1;
+  }
+  struct proc* t = ptable.pLists.ready[p->priority];
+  while (t->next)
+    t = t->next;
+  t->next = p;
+  p->next = 0;
+  return 0;
+  #endif
 }
 
 // Implementation of exit helper function
@@ -1072,4 +1166,101 @@ wait_helper(struct proc** sList, int* hk)
     p = p->next;
   }
 }
+
+#ifdef P4
+// Implementation of helper for set priority system call
+int
+set_priority(int pid, int priority)
+{
+  if (pid < 0)
+    return -1;
+  if (priority < 0 || priority > MAX)
+    return -1;
+
+  int hold = holding(&ptable.lock);
+  if (!hold) acquire(&ptable.lock);
+  if (search_and_set(&ptable.pLists.running, pid, priority) == 0) {
+    if (!hold) release(&ptable.lock);
+    return 0;
+  }
+  if (search_and_set(&ptable.pLists.sleep, pid, priority) == 0) {
+    if (!hold) release(&ptable.lock);
+    return 0;
+  }
+  if (search_and_set_ready(pid, priority) == 0) {
+    if (!hold) release(&ptable.lock);
+    return 0;
+  }
+  if (!hold) release(&ptable.lock);
+  return -1; // Failed to find process with PID matching arg pid
+}
+#endif
+
+#ifdef P4
+// Searches a list for a proc with PID pid and sets its priority
+// to the value passed in via prio argument
+// NEVER USED OUTSIDE OF A LOCKED SECTION OF CODE
+static int 
+search_and_set(struct proc** sList, int pid, int prio)
+{
+  if (!sList)
+    return -1; // Null list
+  struct proc* p = *sList;
+  while (p) {
+    if (p->pid == pid) {
+      if (p->priority == prio)
+        return 1; // No change necessary 
+      else {
+        p->priority = prio;
+        return 0; // Success!
+      }
+    }
+    p = p->next;
+  }
+  return -2; // Not found
+}
+#endif
+
+#ifdef P4
+// Specifically handles the ready list since the process also needs
+// to be moved to a different ready queue.
+// NEVER USED OUTSIDE OF A LOCKED SECTION OF CODE
+static int
+search_and_set_ready(int pid, int prio)
+{
+  for (int i = 0; i < MAX+1; i++) {
+    if (!ptable.pLists.ready[i])
+      continue;
+    struct proc* p = ptable.pLists.ready[i];
+    while (p) {
+      if (p->pid == pid) {
+        if (p->priority == prio)
+          return -1; // No changes need to be made since prio already matches
+        else {
+          p->priority = prio;
+          remove_from_list(&ptable.pLists.ready[i], p);
+          assert_state(p, RUNNABLE);
+          add_to_ready(p, RUNNABLE);
+          return 0;
+        }
+      }
+      p = p->next;  
+    }
+  }
+  return -1;
+}
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
 
