@@ -9,8 +9,9 @@
 #include "uproc.h"
 
 #ifdef P4
-#define TICKS_TO_PROMOTE 500
+#define TICKS_TO_PROMOTE 700
 #define MAX 5
+#define DEFBUDGET 500
 #endif
 
 // New struct holding state lists
@@ -53,6 +54,8 @@ static void wait_helper(struct proc** sList, int* hk);
 #ifdef P4
 static int search_and_set(struct proc** sList, int pid, int prio);
 static int search_and_set_ready(int pid, int prio);
+static int priority_promotion();
+static int promote_list(struct proc** list);
 #endif
 
 void
@@ -137,6 +140,7 @@ found:
   p->cpu_ticks_in = 0;    // My code p2
   #ifdef P4
   p->priority = 0;        // My code p4
+  p->budget = DEFBUDGET;  // My code p4 TEST VAL
   #endif
   return p;
 }
@@ -166,7 +170,7 @@ userinit(void)
     add_to_list(&ptable.pLists.free, UNUSED, p);  
 
   #ifdef P4
-  ptable.promote_at_time = 500;                         // P4: Init promote time to 5 seconds..
+  ptable.promote_at_time = TICKS_TO_PROMOTE;                         // P4: Init promote time to 5 seconds..
   #endif
   release(&ptable.lock);
   
@@ -544,6 +548,7 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
       p->cpu_ticks_in = ticks; // My code p2
+      i = 0;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
 
@@ -566,9 +571,6 @@ scheduler(void)
 {
   struct proc* p;
   int idle;  // for checking if processor is idle
-  #ifdef P4
-  uint promo; // Stores ticks value as scheduler runs 
-  #endif
 
   for(;;) {
 
@@ -577,16 +579,14 @@ scheduler(void)
     idle = 1;   // assume idle unless we schedule a process
     
     acquire(&ptable.lock);
-    #ifdef P4
-    promo = ticks; // Set promo to ticks and check if promo needs to happen
-    if (promo == ptable.promote_at_time) {
-      //Perform promotion here
-      //Increment promote_at_time
-      ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
-    }
-    #endif    
     
     for (int i = 0; i < MAX+1; i++) {
+      #ifdef P4
+      if (ticks == ptable.promote_at_time) {
+        priority_promotion();
+        ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
+      }
+      #endif    
       p = ptable.pLists.ready[i];                                              // P4 changes
       if(p) {
         remove_from_list(&ptable.pLists.ready[i], p);
@@ -603,6 +603,8 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         proc = 0; 
+        if (i != MAX)
+          i = -1;
       }
     }
 
@@ -668,6 +670,11 @@ yield(void)
   #endif
   proc->state = RUNNABLE;
   #ifdef CS333_P3P4
+  proc->budget = proc->budget - (ticks - proc->cpu_ticks_in);
+  if (proc->budget <= 0 && proc->priority < MAX) {
+    proc->priority = proc->priority+1;
+    proc->budget = DEFBUDGET;
+  }
   add_to_ready(proc, RUNNABLE);
   #endif
   sched();
@@ -724,6 +731,11 @@ sleep(void *chan, struct spinlock *lk)
   #endif
   proc->state = SLEEPING;
   #ifdef CS333_P3P4
+  proc->budget = proc->budget - (ticks - proc->cpu_ticks_in);
+  if (proc->budget <= 0 && proc->priority < MAX) {
+    proc->priority = proc->priority+1;
+    proc->budget = DEFBUDGET;
+  }
   add_to_list(&ptable.pLists.sleep, SLEEPING, proc);
   #endif
   sched();
@@ -882,7 +894,7 @@ procdump(void)
   char *state;
   uint pc[10];
   
-  cprintf("%s\t %s\t %s\t %s\t %s\t %s\t %s\t %s  %s\t %s\n", "PID", "Name", "UID", "GID", "PPID", "Prio", "State", "Elapsed", "CPU", "PCs");
+  cprintf("%s\t %s\t\t %s\t %s\t %s\t %s\t %s\t %s  %s\t %s\n", "PID", "Name", "UID", "GID", "PPID", "Prio", "State", "Elapsed", "CPU", "PCs");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -892,7 +904,7 @@ procdump(void)
       state = "???";
     uint seconds = (ticks - p->start_ticks)/100;
     uint partial_seconds = (ticks - p->start_ticks)%100;
-    cprintf("%d\t %s\t %d\t %d\t", p->pid, p->name, p->uid, p->gid);
+    cprintf("%d\t %s\t\t %d\t %d\t", p->pid, p->name, p->uid, p->gid);
     if (p->parent)
       cprintf(" %d\t", p->parent->pid);
     else
@@ -1251,7 +1263,47 @@ search_and_set_ready(int pid, int prio)
 }
 #endif
 
+#ifdef P4
+static int 
+priority_promotion()
+{
+  int hold = holding(&ptable.lock);
+  if (!hold) acquire(&ptable.lock);
+  if (MAX == 0)     // Only one list so simple round robin scheduler
+    return -1;
+  for (int i = 0; i < MAX; i++) {
+    if (!ptable.pLists.ready[i+1])
+      continue;
+    struct proc* p = ptable.pLists.ready[i];
+    while (p->next)
+      p = p->next;
+    promote_list(&ptable.pLists.ready[i+1]);
+    p->next = ptable.pLists.ready[i+1];
+    ptable.pLists.ready[i+1] = 0;
+  }
+  promote_list(&ptable.pLists.running);
+  promote_list(&ptable.pLists.sleep);
+  if (!hold) release(&ptable.lock);
+  return 1; 
+}
+#endif
 
+#ifdef P4
+static int 
+promote_list(struct proc** list)
+{
+  if (!list)
+    return -1;
+
+  struct proc* p = *list;
+  while (p) {
+    if (p->priority > 0)
+      p->priority = p->priority-1;
+    p = p->next;
+  }
+  return 0;
+}
+#endif
 
 
 

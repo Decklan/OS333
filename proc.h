@@ -71,6 +71,7 @@ struct proc {
   uint cpu_ticks_total;        // My code p2
   uint cpu_ticks_in;           // My code p2
   uint priority;               // My code p4
+  uint budget;                 // My code p4
   struct proc* next;           // My code p3
 };
 
