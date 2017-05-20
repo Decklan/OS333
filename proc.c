@@ -8,21 +8,17 @@
 #include "spinlock.h"
 #include "uproc.h"
 
-#ifdef P4
+#ifdef CS333_P3P4
 #define TICKS_TO_PROMOTE 700
 #define MAX 5
-#define DEFBUDGET 500
+#define DEFBUDGET 400
 #endif
 
 // New struct holding state lists
 struct StateLists {
   struct proc* free;
   struct proc* embryo;
-  #ifndef P4
-  struct proc* ready;
-  #else
   struct proc* ready[MAX+1];
-  #endif
   struct proc* running;
   struct proc* sleep;
   struct proc* zombie;
@@ -32,7 +28,7 @@ struct {
   struct spinlock lock;
   struct proc proc[NPROC];
   struct StateLists pLists;             // P3: Added pLists
-  #ifdef P4
+  #ifdef CS333_P3P4
   uint promote_at_time;                 // P4: Default promotion time 
   #endif
 } ptable;
@@ -45,13 +41,13 @@ extern void trapret(void);
 
 // Helper functions declared static
 static void wakeup1(void *chan);
+#ifdef CS333_P3P4
 static void assert_state(struct proc* p, enum procstate state);
 static int remove_from_list(struct proc** sList, struct proc* p);
 static int add_to_list(struct proc** sList, enum procstate state, struct proc* p);
 static int add_to_ready(struct proc* p, enum procstate state);
 static void exit_helper(struct proc** sList);
 static void wait_helper(struct proc** sList, int* hk);
-#ifdef P4
 static int search_and_set(struct proc** sList, int pid, int prio);
 static int search_and_set_ready(int pid, int prio);
 static int priority_promotion();
@@ -138,7 +134,7 @@ found:
   p->start_ticks = ticks; // My code Allocate start ticks to global ticks variable
   p->cpu_ticks_total = 0; // My code p2
   p->cpu_ticks_in = 0;    // My code p2
-  #ifdef P4
+  #ifdef CS333_P3P4
   p->priority = 0;        // My code p4
   p->budget = DEFBUDGET;  // My code p4 TEST VAL
   #endif
@@ -158,20 +154,14 @@ userinit(void)
   ptable.pLists.running = 0;
   ptable.pLists.sleep = 0;
   ptable.pLists.zombie = 0;
-  #ifndef P4
-  ptable.pLists.ready = 0;
-  #else
   for (int i = 0; i < MAX+1; i++)
     ptable.pLists.ready[i] = 0;
-  #endif
 
   // Loop through ptable adding procs to free
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     add_to_list(&ptable.pLists.free, UNUSED, p);  
 
-  #ifdef P4
   ptable.promote_at_time = TICKS_TO_PROMOTE;                         // P4: Init promote time to 5 seconds..
-  #endif
   release(&ptable.lock);
   
   p = allocproc();
@@ -204,11 +194,7 @@ userinit(void)
   // Since it is the first process to be made I directly add to
   // the front of the ready list. Ocurrences after this use the
   // add to ready function.
-  #ifndef P4                                                                 // NEW IFNDEF P4
-  ptable.pLists.ready = p;
-  #else
   ptable.pLists.ready[0] = p;
-  #endif
   p->next = 0;
   release(&ptable.lock);
   #endif
@@ -377,12 +363,8 @@ exit(void)
   // Run exit helper to check process parents against the
   // currently running process. 
   exit_helper(&ptable.pLists.embryo);
-  #ifndef P4
-  exit_helper(&ptable.pLists.ready);
-  #else
   for (int i = 0; i < MAX+1; i++)
     exit_helper(&ptable.pLists.ready[i]);
-  #endif
   exit_helper(&ptable.pLists.running);
   exit_helper(&ptable.pLists.sleep);
 
@@ -466,12 +448,8 @@ wait(void)
     // if process parent is the currently running process and
     // set havekids to 1 if that is the case.
     wait_helper(&ptable.pLists.embryo, &havekids);
-    #ifndef P4
-    wait_helper(&ptable.pLists.ready, &havekids);
-    #else
     for (int i = 0; i < MAX+1; i++)
       wait_helper(&ptable.pLists.ready[i], &havekids);
-    #endif
     wait_helper(&ptable.pLists.running, &havekids);
     wait_helper(&ptable.pLists.sleep, &havekids);
 
@@ -494,6 +472,7 @@ wait(void)
         p->name[0] = 0;
         p->killed = 0;
         p->priority = 0;
+        p->budget = 0;
         add_to_list(&ptable.pLists.free, UNUSED, p);
         release(&ptable.lock);
         return pid;
@@ -569,7 +548,7 @@ scheduler(void)
 void
 scheduler(void)
 {
-  struct proc* p;
+  struct proc* p = 0;
   int idle;  // for checking if processor is idle
 
   for(;;) {
@@ -578,15 +557,16 @@ scheduler(void)
     sti();
     idle = 1;   // assume idle unless we schedule a process
     
-    acquire(&ptable.lock);
-    
+    acquire(&ptable.lock); 
+
     for (int i = 0; i < MAX+1; i++) {
-      #ifdef P4
+      if (!ptable.pLists.ready[i])
+        continue;
       if (ticks == ptable.promote_at_time) {
         priority_promotion();
         ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
       }
-      #endif    
+
       p = ptable.pLists.ready[i];                                              // P4 changes
       if(p) {
         remove_from_list(&ptable.pLists.ready[i], p);
@@ -603,8 +583,7 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         proc = 0; 
-        if (i != MAX)
-          i = -1;
+        i = -1; // Set i to -1 so it increments to 0 and begins with the first queue again
       }
     }
 
@@ -981,25 +960,9 @@ void
 display_ready(void)
 {
   acquire(&ptable.lock);
-  #ifndef P4
-  struct proc* r = ptable.pLists.ready;
-  if (!r) {
-    cprintf("No processes currently in ready.\n");
-    release(&ptable.lock);
-    return;
-  }
-  cprintf("Ready List Processes:\n");
-  while (r) {
-    if (!r->next)
-      cprintf("%d\n", r->pid);
-    else
-      cprintf("%d -> ", r->pid);
-    r = r->next;
-  }
-  #else
   cprintf("Ready List Processes:\n");
   for (int i = 0; i < MAX+1; i++) {
-    cprintf("List %d: ", i);
+    cprintf("Queue %d: ", i);
     struct proc* r = ptable.pLists.ready[i];
     if (!r) {
       cprintf("\n");
@@ -1007,13 +970,12 @@ display_ready(void)
     }
     while (r) {
       if (!r->next)
-        cprintf("%d\n", r->pid);
+        cprintf("(%d, %d)\n", r->pid, r->budget);
       else
-        cprintf("%d -> ", r->pid);
+        cprintf("(%d, %d) -> ", r->pid, r->budget);
       r = r->next;
     }
   }
-  #endif
   release(&ptable.lock);
   return;
 }
@@ -1128,19 +1090,6 @@ add_to_ready(struct proc* p, enum procstate state)
   if (!p)
     return -1;
   assert_state(p, state);
-  #ifndef P4
-  if (!ptable.pLists.ready) {
-    p->next = ptable.pLists.ready;
-    ptable.pLists.ready = p;
-    return 1;
-  }
-  struct proc* t = ptable.pLists.ready;
-  while (t->next)
-    t = t->next;
-  t->next = p;
-  p->next = 0;
-  return 0;
-  #else                                                   // NEW ADD_TO_READY
   if (!ptable.pLists.ready[p->priority]) {
     p->next = ptable.pLists.ready[p->priority];
     ptable.pLists.ready[p->priority] = p;
@@ -1152,7 +1101,6 @@ add_to_ready(struct proc* p, enum procstate state)
   t->next = p;
   p->next = 0;
   return 0;
-  #endif
 }
 
 // Implementation of exit helper function
@@ -1179,7 +1127,7 @@ wait_helper(struct proc** sList, int* hk)
   }
 }
 
-#ifdef P4
+#ifdef CS333_P3P4
 // Implementation of helper for set priority system call
 int
 set_priority(int pid, int priority)
@@ -1208,7 +1156,7 @@ set_priority(int pid, int priority)
 }
 #endif
 
-#ifdef P4
+#ifdef CS333_P3P4
 // Searches a list for a proc with PID pid and sets its priority
 // to the value passed in via prio argument
 // NEVER USED OUTSIDE OF A LOCKED SECTION OF CODE
@@ -1233,7 +1181,7 @@ search_and_set(struct proc** sList, int pid, int prio)
 }
 #endif
 
-#ifdef P4
+#ifdef CS333_P3P4
 // Specifically handles the ready list since the process also needs
 // to be moved to a different ready queue.
 // NEVER USED OUTSIDE OF A LOCKED SECTION OF CODE
@@ -1263,7 +1211,7 @@ search_and_set_ready(int pid, int prio)
 }
 #endif
 
-#ifdef P4
+#ifdef CS333_P3P4
 static int 
 priority_promotion()
 {
@@ -1271,24 +1219,29 @@ priority_promotion()
   if (!hold) acquire(&ptable.lock);
   if (MAX == 0)     // Only one list so simple round robin scheduler
     return -1;
+  promote_list(&ptable.pLists.running);
+  promote_list(&ptable.pLists.sleep);
   for (int i = 0; i < MAX; i++) {
     if (!ptable.pLists.ready[i+1])
       continue;
-    struct proc* p = ptable.pLists.ready[i];
-    while (p->next)
-      p = p->next;
     promote_list(&ptable.pLists.ready[i+1]);
-    p->next = ptable.pLists.ready[i+1];
-    ptable.pLists.ready[i+1] = 0;
+    struct proc* p = ptable.pLists.ready[i];
+    if (!p) {
+      ptable.pLists.ready[i] = ptable.pLists.ready[i+1];
+      ptable.pLists.ready[i+1] = 0;
+    } else {
+      while (p->next)
+        p = p->next;
+      p->next = ptable.pLists.ready[i+1];
+      ptable.pLists.ready[i+1] = 0;
+    }
   }
-  promote_list(&ptable.pLists.running);
-  promote_list(&ptable.pLists.sleep);
   if (!hold) release(&ptable.lock);
   return 1; 
 }
 #endif
 
-#ifdef P4
+#ifdef CS333_P3P4
 static int 
 promote_list(struct proc** list)
 {

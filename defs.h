@@ -122,9 +122,7 @@ void            free_length(void);                    // My code p3
 void            display_ready(void);                  // My code p3
 void            display_sleep(void);                  // My code p3
 void            display_zombie(void);                 // My code p3
-#ifdef P4
 int             set_priority(int pid, int priority);
-#endif
 
 // swtch.S
 void            swtch(struct context**, struct context*);

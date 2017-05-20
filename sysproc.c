@@ -168,7 +168,7 @@ sys_getprocs(void)
   return getproc_helper(m, table);
 }
 
-#ifdef P4
+#ifdef CS333_P3P4
 // Implementation of sys_setpriority
 int
 sys_setpriority(void)
