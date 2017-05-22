@@ -9,9 +9,9 @@
 #include "uproc.h"
 
 #ifdef CS333_P3P4
-#define TICKS_TO_PROMOTE 700
+#define TICKS_TO_PROMOTE 800
 #define MAX 5
-#define DEFBUDGET 400
+#define DEFBUDGET 500
 #endif
 
 // New struct holding state lists
@@ -1135,7 +1135,7 @@ set_priority(int pid, int priority)
   if (pid < 0)
     return -1;
   if (priority < 0 || priority > MAX)
-    return -1;
+    return -2;
 
   int hold = holding(&ptable.lock);
   if (!hold) acquire(&ptable.lock);
@@ -1195,7 +1195,7 @@ search_and_set_ready(int pid, int prio)
     while (p) {
       if (p->pid == pid) {
         if (p->priority == prio)
-          return -1; // No changes need to be made since prio already matches
+          return 1; // No changes need to be made since prio already matches
         else {
           p->priority = prio;
           remove_from_list(&ptable.pLists.ready[i], p);
@@ -1207,7 +1207,7 @@ search_and_set_ready(int pid, int prio)
       p = p->next;  
     }
   }
-  return -1;
+  return -2;
 }
 #endif
 

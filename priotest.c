@@ -11,14 +11,20 @@ int main(int argc, char *argv[])
   int pid = atoi(argv[1]);
   int prio = atoi(argv[2]);
   int rc = setpriority(pid, prio);
-  if (rc < 0) {
-    printf(2, "Either the list was null or the pid wasn't found.\n");
+  if (rc == -1) {
+    printf(2, "INVALID PID.\n");
     exit();
   } else if (rc == 0) {
     printf(1, "Success!\n");
     exit();
-  } else {
+  } else if (rc == 1){
     printf(1, "Process already has priority %d.\n", prio);
     exit();
-  } 
+  } else if (rc == -2) {
+    printf(2, "INVALID PRIORITY VALUE.\n");
+    exit();
+  } else {
+    printf(2, "PID: %d not found.\n", pid);
+    exit();
+  }
 }

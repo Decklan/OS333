@@ -9090,7 +9090,7 @@ found:
 801046e2:	00 00 00 
   p->budget = DEFBUDGET;  // My code p4 TEST VAL
 801046e5:	8b 45 f4             	mov    -0xc(%ebp),%eax
-801046e8:	c7 80 94 00 00 00 90 	movl   $0x190,0x94(%eax)
+801046e8:	c7 80 94 00 00 00 f4 	movl   $0x1f4,0x94(%eax)
 801046ef:	01 00 00 
   #endif
   return p;
@@ -9173,8 +9173,8 @@ userinit(void)
     add_to_list(&ptable.pLists.free, UNUSED, p);  
 
   ptable.promote_at_time = TICKS_TO_PROMOTE;                         // P4: Init promote time to 5 seconds..
-80104793:	c7 05 e0 70 11 80 bc 	movl   $0x2bc,0x801170e0
-8010479a:	02 00 00 
+80104793:	c7 05 e0 70 11 80 20 	movl   $0x320,0x801170e0
+8010479a:	03 00 00 
   release(&ptable.lock);
 8010479d:	83 ec 0c             	sub    $0xc,%esp
 801047a0:	68 80 49 11 80       	push   $0x80114980
@@ -10123,7 +10123,7 @@ scheduler(void)
 80105064:	e8 ca 13 00 00       	call   80106433 <priority_promotion>
         ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
 80105069:	a1 00 79 11 80       	mov    0x80117900,%eax
-8010506e:	05 bc 02 00 00       	add    $0x2bc,%eax
+8010506e:	05 20 03 00 00       	add    $0x320,%eax
 80105073:	a3 e0 70 11 80       	mov    %eax,0x801170e0
       }
 
@@ -10384,7 +10384,7 @@ yield(void)
 8010532d:	89 90 90 00 00 00    	mov    %edx,0x90(%eax)
     proc->budget = DEFBUDGET;
 80105333:	65 a1 04 00 00 00    	mov    %gs:0x4,%eax
-80105339:	c7 80 94 00 00 00 90 	movl   $0x190,0x94(%eax)
+80105339:	c7 80 94 00 00 00 f4 	movl   $0x1f4,0x94(%eax)
 80105340:	01 00 00 
   }
   add_to_ready(proc, RUNNABLE);
@@ -10548,7 +10548,7 @@ sleep(void *chan, struct spinlock *lk)
 801054b0:	89 90 90 00 00 00    	mov    %edx,0x90(%eax)
     proc->budget = DEFBUDGET;
 801054b6:	65 a1 04 00 00 00    	mov    %gs:0x4,%eax
-801054bc:	c7 80 94 00 00 00 90 	movl   $0x190,0x94(%eax)
+801054bc:	c7 80 94 00 00 00 f4 	movl   $0x1f4,0x94(%eax)
 801054c3:	01 00 00 
   }
   add_to_list(&ptable.pLists.sleep, SLEEPING, proc);
@@ -12149,8 +12149,8 @@ set_priority(int pid, int priority)
 801061e7:	78 06                	js     801061ef <set_priority+0x22>
 801061e9:	83 7d 0c 05          	cmpl   $0x5,0xc(%ebp)
 801061ed:	7e 0a                	jle    801061f9 <set_priority+0x2c>
-    return -1;
-801061ef:	b8 ff ff ff ff       	mov    $0xffffffff,%eax
+    return -2;
+801061ef:	b8 fe ff ff ff       	mov    $0xfffffffe,%eax
 801061f4:	e9 e7 00 00 00       	jmp    801062e0 <set_priority+0x113>
 
   int hold = holding(&ptable.lock);
@@ -12347,8 +12347,8 @@ search_and_set_ready(int pid, int prio)
 801063a5:	8b 45 0c             	mov    0xc(%ebp),%eax
 801063a8:	39 c2                	cmp    %eax,%edx
 801063aa:	75 07                	jne    801063b3 <search_and_set_ready+0x64>
-          return -1; // No changes need to be made since prio already matches
-801063ac:	b8 ff ff ff ff       	mov    $0xffffffff,%eax
+          return 1; // No changes need to be made since prio already matches
+801063ac:	b8 01 00 00 00       	mov    $0x1,%eax
 801063b1:	eb 7e                	jmp    80106431 <search_and_set_ready+0xe2>
         else {
           p->priority = prio;
@@ -12416,8 +12416,8 @@ search_and_set_ready(int pid, int prio)
       p = p->next;  
     }
   }
-  return -1;
-8010642c:	b8 ff ff ff ff       	mov    $0xffffffff,%eax
+  return -2;
+8010642c:	b8 fe ff ff ff       	mov    $0xfffffffe,%eax
 }
 80106431:	c9                   	leave  
 80106432:	c3                   	ret    
