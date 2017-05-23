@@ -444,15 +444,6 @@ wait(void)
     // Scan through table looking for zombie children
     havekids = 0;
 
-    // Run wait helper function to search each list and check
-    // if process parent is the currently running process and
-    // set havekids to 1 if that is the case.
-    wait_helper(&ptable.pLists.embryo, &havekids);
-    for (int i = 0; i < MAX+1; i++)
-      wait_helper(&ptable.pLists.ready[i], &havekids);
-    wait_helper(&ptable.pLists.running, &havekids);
-    wait_helper(&ptable.pLists.sleep, &havekids);
-
     // Search zombie list separately due to the potential need
     // to deallocate the process and move it to the free list.
     p = ptable.pLists.zombie;
@@ -479,6 +470,15 @@ wait(void)
       }
       p = p->next;
     }
+
+    // Run wait helper function to search each list and check
+    // if process parent is the currently running process and
+    // set havekids to 1 if that is the case.
+    wait_helper(&ptable.pLists.embryo, &havekids);
+    for (int i = 0; i < MAX+1; i++)
+      wait_helper(&ptable.pLists.ready[i], &havekids);
+    wait_helper(&ptable.pLists.running, &havekids);
+    wait_helper(&ptable.pLists.sleep, &havekids);
 
     // No point waiting if we don't have any children
     if (!havekids || proc->killed) {
