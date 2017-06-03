@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
+#include "stat.h"
 
 int
 exec(char *path, char **argv)
@@ -25,6 +26,24 @@ exec(char *path, char **argv)
   }
   ilock(ip);
   pgdir = 0;
+
+
+  #ifdef CS333_P5
+  struct stat *statp = 0;
+  stati(ip, statp);
+  // Check to see if the calling routine has read access
+  // before the read operation occurs
+  if (proc->uid == statp->uid) {
+    if (!statp->mode.flags.u_x)
+      goto bad;
+  } else if (proc->gid == statp->gid) {
+    if (!statp->mode.flags.g_x)
+      goto bad;
+  } else {
+    if (!statp->mode.flags.o_x)
+      goto bad;
+  }
+  #endif
 
   // Check ELF header
   if(readi(ip, (char*)&elf, 0, sizeof(elf)) < sizeof(elf))
@@ -92,6 +111,11 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  #ifdef CS333_P5
+  // Process is allowed to be executed so set proc->uid to ip->uid
+  if (statp->mode.flags.setuid)
+    proc->uid = statp->uid;
+  #endif
   switchuvm(proc);
   freevm(oldpgdir);
   return 0;

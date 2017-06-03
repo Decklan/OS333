@@ -30,11 +30,14 @@ SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
 SYSCALL(halt)
-SYSCALL(date)      #p1
-SYSCALL(getuid)    #p2
-SYSCALL(getgid)    #p2
-SYSCALL(getppid)   #p2
-SYSCALL(setuid)    #p2
-SYSCALL(setgid)    #p2
-SYSCALL(getprocs)  #p2
-SYSCALL(setpriority)
+SYSCALL(date)        #p1
+SYSCALL(getuid)      #p2
+SYSCALL(getgid)      #p2
+SYSCALL(getppid)     #p2
+SYSCALL(setuid)      #p2
+SYSCALL(setgid)      #p2
+SYSCALL(getprocs)    #p2
+SYSCALL(setpriority) #p4
+SYSCALL(chmod)       #p5
+SYSCALL(chown)       #p5
+SYSCALL(chgrp)       #p5

@@ -440,3 +440,55 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+#ifdef CS333_P5
+// Implementation of chmod system call
+int
+sys_chmod(void)
+{
+  char *pn;
+  int md;
+  
+  if(argptr(0, (void*)&pn, sizeof(*pn)) < 0)
+    return -1;
+  argint(1, &md);
+  // Error check the integer equivalent of the bounds for
+  // a mode and return -1 if outside the correct range
+  if (md < 0)
+    return -1; 
+  return chmod_helper(pn, md);
+}
+
+// Implementation of chown system call
+int
+sys_chown(void)
+{
+  char *pn;
+  int owner;
+
+  if (argptr(0, (void*)&pn, sizeof(*pn)) < 0)
+    return -1;
+  argint(1, &owner);
+  if (owner < 0 || owner > 32767)
+    return -1;
+  else
+    return chown_helper(pn, owner);
+}
+
+// Implementation of chgrp system call
+int
+sys_chgrp(void)
+{
+  char *pn;
+  int owner;
+
+  if (argptr(0, (void*)&pn, sizeof(*pn)) < 0)
+    return -1;
+  argint(1, &owner);
+  if (owner < 0 || owner > 32767)
+    return -1;
+  else
+    return chgrp_helper(pn, owner);
+}
+#endif
+

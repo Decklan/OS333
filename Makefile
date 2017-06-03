@@ -73,6 +73,7 @@ CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 &
 # CFLAGS += -DPRINT_SYSCALLS     # CS333 to print syscall traces
 CFLAGS += -DUSE_BUILTINS       # CS333 to turn on shell built-ins
 CFLAGS += -DCS333_P3P4         # New flag for P3P4
+CFLAGS += -DCS333_P5           # New flag for P5
 ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 # FreeBSD ld wants ``elf_i386_fbsd''
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null)
@@ -128,7 +129,7 @@ _forktest: forktest.o $(ULIB)
 	$(OBJDUMP) -S _forktest > forktest.asm
 
 mkfs: mkfs.c fs.h
-	gcc -Werror -Wall -o mkfs mkfs.c
+	gcc -Werror -Wall -DCS333_P5 -o mkfs mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
@@ -161,6 +162,11 @@ UPROGS=\
         _loopforever\
         _pstest\
         _priotest\
+        _chmod\
+        _chown\
+        _chgrp\
+        _p5-test\
+        _testsetuid\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

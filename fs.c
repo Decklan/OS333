@@ -209,6 +209,11 @@ iupdate(struct inode *ip)
   dip->minor = ip->minor;
   dip->nlink = ip->nlink;
   dip->size = ip->size;
+  #ifdef CS333_P5
+  dip->uid = ip->uid;
+  dip->gid = ip->gid;
+  dip->mode.as_int = ip->mode.as_int;
+  #endif
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);
@@ -286,6 +291,11 @@ ilock(struct inode *ip)
     ip->minor = dip->minor;
     ip->nlink = dip->nlink;
     ip->size = dip->size;
+    #ifdef CS333_P5
+    ip->uid = dip->uid;
+    ip->gid = dip->gid;
+    ip->mode.as_int = dip->mode.as_int;
+    #endif
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
     brelse(bp);
     ip->flags |= I_VALID;
@@ -426,6 +436,11 @@ stati(struct inode *ip, struct stat *st)
   st->ino = ip->inum;
   st->type = ip->type;
   st->nlink = ip->nlink;
+  #ifdef CS333_P5
+  st->uid = ip->uid;
+  st->gid = ip->gid;
+  st->mode.as_int = ip->mode.as_int;
+  #endif
   st->size = ip->size;
 }
 
@@ -649,3 +664,66 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+#ifdef CS333_P5
+int
+chown_helper(char *pathname, int uowner)
+{
+  begin_op();
+  struct inode *in = namei(pathname);
+  if (!in) {
+    end_op();
+    return -1;
+  } else {
+    ilock(in);
+    in->uid = uowner;
+    iupdate(in);
+  }
+  iunlock(in);
+  end_op();
+  return 0;
+}
+
+int
+chgrp_helper(char *pathname, int gowner)
+{
+  begin_op();
+  struct inode *in = namei(pathname);
+  if (!in) {
+    end_op();
+    return -1;
+  } else {
+    ilock(in);
+    in->gid = gowner;
+    iupdate(in);
+  }
+  iunlock(in);
+  end_op();
+  return 0;
+}
+
+int
+chmod_helper(char *pathname, int mode)
+{
+  begin_op();
+  struct inode *in = namei(pathname);
+  if (!in) {
+    end_op();
+    return -1;
+  } else {
+    ilock(in);
+    if (in->mode.as_int == mode) {
+      iunlock(in);
+      end_op();
+      return -1;
+    } else {
+      in->mode.as_int = mode; 
+      iupdate(in);
+    }
+  }
+  iunlock(in);
+  end_op();
+  return 0;
+}
+#endif
+

@@ -51,6 +51,11 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+#ifdef CS333_P5
+int             chown_helper(char *pathname, int uowner);
+int             chgrp_helper(char *pathname, int gowner);
+int             chmod_helper(char *pathname, int mode);
+#endif
 
 // ide.c
 void            ideinit(void);

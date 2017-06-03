@@ -22,6 +22,69 @@ fmtname(char *path)
   return buf;
 }
 
+#ifdef CS333_P5
+// this is an ugly series of if statements but it works
+void
+print_mode(struct stat *st)
+{                                           
+  switch (st->type) {
+    case T_DIR: printf(1, "d"); break;
+    case T_FILE: printf(1, "-"); break;
+    case T_DEV: printf(1, "c"); break;
+    default: printf(1, "?");
+  }           
+                                                                        
+  if (st->mode.flags.u_r)
+    printf(1, "r");
+  else       
+    printf(1, "-");                                
+                                       
+  if (st->mode.flags.u_w)
+    printf(1, "w");
+  else                
+    printf(1, "-");     
+               
+  if ((st->mode.flags.u_x) & (st->mode.flags.setuid))
+    printf(1, "S");
+  else if (st->mode.flags.u_x)
+    printf(1, "x");
+  else                                             
+    printf(1, "-");   
+                 
+  if (st->mode.flags.g_r)
+    printf(1, "r"); 
+  else                       
+    printf(1, "-");                            
+                 
+  if (st->mode.flags.g_w)
+    printf(1, "w");    
+  else                                                                   
+    printf(1, "-");
+                                                                                           
+  if (st->mode.flags.g_x)
+    printf(1, "x");
+  else    
+    printf(1, "-");
+
+  if (st->mode.flags.o_r)
+    printf(1, "r");
+  else
+    printf(1, "-");
+                            
+  if (st->mode.flags.o_w)
+    printf(1, "w");
+  else
+    printf(1, "-");
+            
+  if (st->mode.flags.o_x)
+    printf(1, "x");
+  else                 
+    printf(1, "-");
+         
+  return;
+}
+#endif
+
 void
 ls(char *path)
 {
@@ -43,7 +106,13 @@ ls(char *path)
   
   switch(st.type){
   case T_FILE:
+    #ifndef CS333_P5
     printf(1, "%s %d %d %d\n", fmtname(path), st.type, st.ino, st.size);
+    #else
+    printf(1, "%s\t %s\t %s\t %s\t %s\t %s\n", "Mode  ", "  Name       ", "        UID", "GID", "iNode", "Size");
+    print_mode(&st);
+    printf(1, " %s\t %d\t %d\t %d\t %d\n", fmtname(path), st.uid, st.gid, st.ino, st.size);
+    #endif
     break;
   
   case T_DIR:
@@ -54,6 +123,10 @@ ls(char *path)
     strcpy(buf, path);
     p = buf+strlen(buf);
     *p++ = '/';
+    
+    #ifdef CS333_P5
+    printf(1, "%s\t %s\t %s\t %s\t %s\t %s\n", "Mode    ", "Name       ", "UID", "GID", "iNode", "Size");
+    #endif
     while(read(fd, &de, sizeof(de)) == sizeof(de)){
       if(de.inum == 0)
         continue;
@@ -63,10 +136,16 @@ ls(char *path)
         printf(1, "ls: cannot stat %s\n", buf);
         continue;
       }
+      #ifndef CS333_P5
       printf(1, "%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+      #else
+      print_mode(&st);
+      printf(1, " %s\t %d\t %d\t %d\t %d\n", fmtname(buf), st.uid, st.gid, st.ino, st.size);
+      #endif
     }
     break;
   }
+
   close(fd);
 }
 
@@ -83,3 +162,4 @@ main(int argc, char *argv[])
     ls(argv[i]);
   exit();
 }
+

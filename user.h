@@ -32,7 +32,10 @@ uint getppid(void);                          // p2
 int setuid(uint);                            // p2
 int setgid(uint);                            // p2
 int getprocs(uint max, struct uproc* table); // p2
-int setpriority(int pid, int priority);     // p4
+int setpriority(int pid, int priority);      // p4
+int chmod(char *pathname, int mode);         // p5
+int chown(char *pathname, int owner);        // p5
+int chgrp(char *pathname, int owner);        // p5
 
 // ulib.c
 int stat(char*, struct stat*);
