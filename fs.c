@@ -712,14 +712,8 @@ chmod_helper(char *pathname, int mode)
     return -1;
   } else {
     ilock(in);
-    if (in->mode.as_int == mode) {
-      iunlock(in);
-      end_op();
-      return -1;
-    } else {
-      in->mode.as_int = mode; 
-      iupdate(in);
-    }
+    in->mode.as_int = mode; 
+    iupdate(in);
   }
   iunlock(in);
   end_op();

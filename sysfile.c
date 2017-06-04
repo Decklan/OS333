@@ -262,6 +262,11 @@ create(char *path, short type, short major, short minor)
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
+  #ifdef CS333_P5
+  ip->uid = DEFAULTUID;
+  ip->gid = DEFAULTGID;
+  ip->mode.as_int = DEFAULTMODE;
+  #endif
   iupdate(ip);
 
   if(type == T_DIR){  // Create . and .. entries.

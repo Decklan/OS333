@@ -26,14 +26,22 @@ int main(int argc, char *argv[])
 
   // XV6 code START
   // verify mode in correct range: 0000 - 1777 octal.
-  if (!(mode[0] == '0' || mode[0] == '1'))
-    return -1;
-  if (!(mode[1] >= '0' && mode[1] <= '7'))
-    return -1;
-  if (!(mode[2] >= '0' && mode[2] <= '7'))
-    return -1;
-  if (!(mode[3] >= '0' && mode[3] <= '7'))
-    return -1;
+  if (!(mode[0] == '0' || mode[0] == '1')) {
+    printf(2, "ERROR: Mode is out of acceptable range 0000-1777.\n");
+    exit();
+  }
+  if (!(mode[1] >= '0' && mode[1] <= '7')) {
+    printf(2, "ERROR: Mode is out of acceptable range 0000-1777.\n");
+    exit();
+  }
+  if (!(mode[2] >= '0' && mode[2] <= '7')) {
+    printf(2, "ERROR: Mode is out of acceptable range 0000-1777.\n");
+    exit();
+  }
+  if (!(mode[3] >= '0' && mode[3] <= '7')) {
+    printf(2, "ERROR: Mode is out of acceptable range 0000-1777.\n");
+    exit();
+  }
 
   // convert octal to decimal.  we have no pow() function
   imode += ((int)(mode[0] - '0') * (8*8*8));
