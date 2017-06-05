@@ -175,12 +175,6 @@ doChmodTest(char **cmd)
     check(chmod(cmd[0], perms[i]));
     check(stat(cmd[0], &st));
     testmode = st.mode.as_int;
-    if (mode == testmode) {
-      printf(2, "Error! Unable to test.\n");
-      printf(2, "\tfile mode (%d) == testmode (%d) for file (%s) in test %d\n",
-		     mode, testmode, cmd[0], i);
-      return NOPASS;
-    }
     if (mode == testmode) { 
       printf(2, "Error! chmod() failed to set permissions correctly. %s, %d\n",
 		      __FILE__, __LINE__);
@@ -213,7 +207,7 @@ doChownTest(char **cmd)
   uid2 = st.uid;
 
   if (uid1 == uid2) {
-    printf(2, "Error! test failed. Old uid: %d, new uid: uid2, should differ\n",
+    printf(2, "Error! test failed. Old uid: %d, new uid: %d, should differ\n",
 		    uid1, uid2);
     return NOPASS;
   }

@@ -456,9 +456,9 @@ sys_chmod(void)
   
   if(argptr(0, (void*)&pn, sizeof(*pn)) < 0)
     return -1;
-  argint(1, &md);
-  // Error check the integer equivalent of the bounds for
-  // a mode and return -1 if outside the correct range
+  if (argint(1, &md) < 0)
+    return -1;
+  // Error check lower bound
   if (md < 0)
     return -1; 
   return chmod_helper(pn, md);
@@ -473,7 +473,8 @@ sys_chown(void)
 
   if (argptr(0, (void*)&pn, sizeof(*pn)) < 0)
     return -1;
-  argint(1, &owner);
+  if (argint(1, &owner) < 0) 
+    return -1;
   if (owner < 0 || owner > 32767)
     return -1;
   else
@@ -489,7 +490,8 @@ sys_chgrp(void)
 
   if (argptr(0, (void*)&pn, sizeof(*pn)) < 0)
     return -1;
-  argint(1, &owner);
+  if (argint(1, &owner) < 0)
+    return -1;
   if (owner < 0 || owner > 32767)
     return -1;
   else

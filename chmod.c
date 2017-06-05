@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     exit();
   }
 
-  // XV6 code START
+  // Written by Mark Morrissey
   // verify mode in correct range: 0000 - 1777 octal.
   if (!(mode[0] == '0' || mode[0] == '1')) {
     printf(2, "ERROR: Mode is out of acceptable range 0000-1777.\n");
@@ -48,9 +48,7 @@ int main(int argc, char *argv[])
   imode += ((int)(mode[1] - '0') * (8*8));
   imode += ((int)(mode[2] - '0') * (8));
   imode +=  (int)(mode[3] - '0');
-  //XV6 code END
-
-  printf(1, "String in octal is %s and decimal is %d\n", mode, imode);
+  //End of code written by Mark Morrissey
 
   int rc = chmod(file, imode);
   if (rc < 0) {
