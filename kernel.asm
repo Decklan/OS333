@@ -10396,26 +10396,26 @@ scheduler(void)
     for (int i = 0; i < MAX+1; i++) {
 801052a5:	c7 45 f0 00 00 00 00 	movl   $0x0,-0x10(%ebp)
 801052ac:	e9 12 01 00 00       	jmp    801053c3 <scheduler+0x147>
-      if (!ptable.pLists.ready[i])
-801052b1:	8b 45 f0             	mov    -0x10(%ebp),%eax
-801052b4:	05 cc 09 00 00       	add    $0x9cc,%eax
-801052b9:	8b 04 85 ac 49 11 80 	mov    -0x7feeb654(,%eax,4),%eax
-801052c0:	85 c0                	test   %eax,%eax
-801052c2:	0f 84 f6 00 00 00    	je     801053be <scheduler+0x142>
-        continue;
       if (ticks == ptable.promote_at_time) {
-801052c8:	8b 15 00 71 11 80    	mov    0x80117100,%edx
-801052ce:	a1 20 79 11 80       	mov    0x80117920,%eax
-801052d3:	39 c2                	cmp    %eax,%edx
-801052d5:	75 14                	jne    801052eb <scheduler+0x6f>
+801052b1:	8b 15 00 71 11 80    	mov    0x80117100,%edx
+801052b7:	a1 20 79 11 80       	mov    0x80117920,%eax
+801052bc:	39 c2                	cmp    %eax,%edx
+801052be:	75 14                	jne    801052d4 <scheduler+0x58>
         priority_promotion();
-801052d7:	e8 ca 13 00 00       	call   801066a6 <priority_promotion>
+801052c0:	e8 e1 13 00 00       	call   801066a6 <priority_promotion>
         ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
-801052dc:	a1 20 79 11 80       	mov    0x80117920,%eax
-801052e1:	05 20 03 00 00       	add    $0x320,%eax
-801052e6:	a3 00 71 11 80       	mov    %eax,0x80117100
+801052c5:	a1 20 79 11 80       	mov    0x80117920,%eax
+801052ca:	05 20 03 00 00       	add    $0x320,%eax
+801052cf:	a3 00 71 11 80       	mov    %eax,0x80117100
       }
 
+      if (!ptable.pLists.ready[i])
+801052d4:	8b 45 f0             	mov    -0x10(%ebp),%eax
+801052d7:	05 cc 09 00 00       	add    $0x9cc,%eax
+801052dc:	8b 04 85 ac 49 11 80 	mov    -0x7feeb654(,%eax,4),%eax
+801052e3:	85 c0                	test   %eax,%eax
+801052e5:	0f 84 d3 00 00 00    	je     801053be <scheduler+0x142>
+        continue;
       p = ptable.pLists.ready[i];                                              // P4 changes
 801052eb:	8b 45 f0             	mov    -0x10(%ebp),%eax
 801052ee:	05 cc 09 00 00       	add    $0x9cc,%eax
@@ -10486,10 +10486,10 @@ scheduler(void)
         i = -1; // Set i to -1 so it increments to 0 and begins with the first queue again
 801053b5:	c7 45 f0 ff ff ff ff 	movl   $0xffffffff,-0x10(%ebp)
 801053bc:	eb 01                	jmp    801053bf <scheduler+0x143>
-    
-    acquire(&ptable.lock); 
+        priority_promotion();
+        ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
+      }
 
-    for (int i = 0; i < MAX+1; i++) {
       if (!ptable.pLists.ready[i])
         continue;
 801053be:	90                   	nop

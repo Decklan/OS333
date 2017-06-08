@@ -560,13 +560,13 @@ scheduler(void)
     acquire(&ptable.lock); 
 
     for (int i = 0; i < MAX+1; i++) {
-      if (!ptable.pLists.ready[i])
-        continue;
       if (ticks == ptable.promote_at_time) {
         priority_promotion();
         ptable.promote_at_time = ticks + TICKS_TO_PROMOTE;
       }
 
+      if (!ptable.pLists.ready[i])
+        continue;
       p = ptable.pLists.ready[i];                                              // P4 changes
       if(p) {
         remove_from_list(&ptable.pLists.ready[i], p);
