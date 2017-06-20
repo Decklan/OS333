@@ -135,7 +135,8 @@ sys_setuid(void)
 {
   int id; // uid argument
   // Grab argument off the stack and store in id
-  argint(0, &id);
+  if(argint(0, &id) < 0)
+    return -1;
   if(id < 0 || id > 32767)
     return -1;
   proc->uid = id; 
@@ -148,7 +149,8 @@ sys_setgid(void)
 {
   int id; // gid argument 
   // Grab argument off the stack and store in id
-  argint(0, &id);
+  if(argint(0, &id) < 0)
+    return -1;
   if(id < 0 || id > 32767)
     return -1;
   proc->gid = id;
@@ -161,10 +163,12 @@ sys_getprocs(void)
 {
   int m; // Max arg
   struct uproc* table;
-  argint(0, &m);
+  if(argint(0, &m) < 0)
+    return -1;
   if (m < 0)
     return -1;
-  argptr(1, (void*)&table, m);
+  if(argptr(1, (void*)&table, m) < 0)
+    return -1;
   return getproc_helper(m, table);
 }
 
@@ -176,8 +180,10 @@ sys_setpriority(void)
   int pid;
   int prio;
 
-  argint(0, &pid);
-  argint(1, &prio);
+  if(argint(0, &pid) < 0)
+    return -1;
+  if(argint(1, &prio) < 0)
+    return -1;
   return set_priority(pid, prio);
 }
 #endif

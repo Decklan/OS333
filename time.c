@@ -4,8 +4,8 @@
 // Take in commandline args to process
 int main(int argc, char *argv[])
 {
-  int f = fork(); 
   int before = uptime();
+  int f = fork(); 
   int after = 0;
   if (f < 0)
     printf(2, "Fork failed.");
@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
   {
     argv++;
     exec(argv[0], argv);
+    printf(2, "ERROR: exec failed.\n");
   } else {
     wait();
     after = uptime();
